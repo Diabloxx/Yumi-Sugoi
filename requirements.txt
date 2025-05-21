@@ -1,0 +1,6 @@
+discord.py
+transformers
+scikit-learn
+python-dotenv
+torch
+openai>=1.0.0

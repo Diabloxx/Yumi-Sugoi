@@ -1,0 +1,35 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environment variables
+.env
+
+# VSCode
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Data
+*.sqlite3
+*.db
+*.log
+
+# Datasets (keep only chatbot_dataset.json, user_names.json, yumi_modes.json, README.txt)
+datasets/*
+!datasets/chatbot_dataset.json
+!datasets/user_names.json
+!datasets/yumi_modes.json
+!datasets/README.txt
+
+# History
+convo_history.json
+
+# Misc
+UNUSED_FILES.txt
