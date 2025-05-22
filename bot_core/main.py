@@ -55,9 +55,9 @@ except Exception:
 
 def get_context_mode(ctx):
     if hasattr(ctx, 'guild') and ctx.guild:
-        return CONTEXT_MODES.get(f"guild_{ctx.guild.id}", None)
+        return CONTEXT_MODES.get(f"guild_{ctx.guild.id}", "normal")
     else:
-        return CONTEXT_MODES.get(f"user_{ctx.author.id}", None)
+        return CONTEXT_MODES.get(f"user_{ctx.author.id}", "normal")
 
 def set_context_mode(ctx, mode):
     if hasattr(ctx, 'guild') and ctx.guild:
@@ -148,14 +148,13 @@ async def on_ready():
     print(f"Yumi is online with mode: {mode} and status: {status}")
 
 # Patch: before every response, set persona mode to the context's mode
-async def set_mode_for_context(message):
+def set_mode_for_context(message):
     mode = None
     if message.guild:
-        mode = CONTEXT_MODES.get(f"guild_{message.guild.id}")
+        mode = CONTEXT_MODES.get(f"guild_{message.guild.id}", "normal")
     else:
-        mode = CONTEXT_MODES.get(f"user_{message.author.id}")
-    if mode:
-        set_persona_mode(mode)
+        mode = CONTEXT_MODES.get(f"user_{message.author.id}", "normal")
+    set_persona_mode(mode)
 
 @bot.event
 async def on_message(message):
