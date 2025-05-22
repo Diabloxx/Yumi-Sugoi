@@ -1,6 +1,7 @@
-discord.py
-transformers
-scikit-learn
-python-dotenv
-torch
+discord.py>=2.3.2
+transformers>=4.36.2
+python-dotenv>=1.0.0
+torch>=2.0.0
 openai>=1.0.0
+requests>=2.31.0
+beautifulsoup4>=4.12.3

@@ -9,6 +9,19 @@ import random
 import re
 import json
 import itertools
+from collections import defaultdict
+
+# --- Admin user ID and admin checks must be defined before any use ---
+ADMIN_USER_ID = 594793428634566666
+
+def is_admin(user):
+    return getattr(user, 'id', None) == ADMIN_USER_ID
+
+def admin_only():
+    def predicate(ctx):
+        return is_admin(ctx.author)
+    from discord.ext.commands import check
+    return check(predicate)
 
 DATASET_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'datasets')
 CHATBOT_DATASET_FILE = os.path.join(DATASET_DIR, 'chatbot_dataset.json')
@@ -46,7 +59,7 @@ async def yumi_mode_slash(interaction: discord.Interaction, mode: str):
         set_context_mode(interaction, mode)
         # Update status immediately
         persona_status = {
-            'normal': "Your flirty AI waifu 💖 | !yumi_help",
+            'normal': "Your friendly, caring AI companion 🤗 | !yumi_help",
             'mistress': "Mistress Yumi is in control 👠 | !yumi_mode",
             'bdsm': "Dungeon open. Safe words ready. 🖤 | !yumi_mode",
             'girlfriend': "Your playful AI girlfriend 💌 | !yumi_mode",
@@ -73,7 +86,7 @@ async def yumi_mode_slash(interaction: discord.Interaction, mode: str):
         set_persona_mode(mode)
         # Appealing mode change message
         mode_titles = {
-            'normal': "Flirty Waifu",
+            'normal': "Normal",
             'mistress': "Mistress",
             'bdsm': "Dungeon Mistress",
             'girlfriend': "Girlfriend",
@@ -250,7 +263,7 @@ if 'egirl' not in PERSONA_MODES:
 
 from .llm import generate_llm_response
 from .history import save_convo_history
-from .feedback import save_feedback_scores, save_user_feedback, reset_feedback, export_feedback, export_user_feedback, get_user_feedback_stats
+from .feedback import save_feedback_scores, save_user_feedback, save_user_feedback, reset_feedback, export_feedback, export_user_feedback, get_user_feedback_stats
 from .websearch import duckduckgo_search_and_summarize
 from .image_caption import caption_image
 
@@ -298,7 +311,7 @@ async def on_ready():
     print("Yumi Sugoi modular bot is ready!")
     # Set initial status to current mode immediately
     persona_status = {
-        'normal': "Your flirty AI waifu 💖 | !yumi_help",
+        'normal': "Your friendly, caring AI companion 🤗 | !yumi_help",
         'mistress': "Mistress Yumi is in control 👠 | !yumi_mode",
         'bdsm': "Dungeon open. Safe words ready. 🖤 | !yumi_mode",
         'girlfriend': "Your playful AI girlfriend 💌 | !yumi_mode",
@@ -338,23 +351,144 @@ def set_mode_for_context(message):
         mode = CONTEXT_MODES.get(f"user_{message.author.id}", "normal")
     set_persona_mode(mode)
 
+# --- CHANGELOG POSTING ---
+CHANGELOG_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'CHANGELOG.md')
+CHANGELOG_CHANNEL_ID = 1375129643925114973
+POSTED_CHANGELOG_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'datasets', 'posted_changelog.txt')
+
+def get_last_posted_changelog():
+    try:
+        with open(POSTED_CHANGELOG_FILE, 'r', encoding='utf-8') as f:
+            return f.read().strip()
+    except Exception:
+        return ''
+
+def set_last_posted_changelog(latest):
+    with open(POSTED_CHANGELOG_FILE, 'w', encoding='utf-8') as f:
+        f.write(latest.strip())
+
+async def post_changelog():
+    try:
+        with open(CHANGELOG_FILE, 'r', encoding='utf-8') as f:
+            changelog = f.read()
+        channel = bot.get_channel(CHANGELOG_CHANNEL_ID)
+        if channel:
+            # Only post the latest entry (after the last ##)
+            entries = [e.strip() for e in changelog.split('##') if e.strip()]
+            if entries:
+                latest = entries[-1]
+                last_posted = get_last_posted_changelog()
+                if latest != last_posted:
+                    # Discord embed-like formatting
+                    await channel.send(f"**Yumi Sugoi Changelog Update:**\n> ```markdown\n##{latest}\n```")
+                    set_last_posted_changelog(latest)
+    except Exception as e:
+        print(f"[Changelog] Failed to post: {e}")
+
+@bot.command()
+@commands.check_any(commands.has_permissions(administrator=True), admin_only())
+async def yumi_post_changelog(ctx):
+    """Post the latest changelog entry to the changelog channel (only if new)."""
+    await post_changelog()
+    await ctx.send("Changelog posted (if new update found)!")
+
+# --- PER-USER CONTEXT LOGIC ---
+# Use a per-user, per-channel context key for conversation history
+USER_CHANNEL_CONTEXT = defaultdict(dict)  # {guild_id: {user_id: convo_key}}
+
+@bot.command()
+@commands.check_any(commands.has_permissions(administrator=True), admin_only())
+async def yumi_admin_tools(ctx):
+    """
+    Show available admin tools and commands for Yumi Sugoi.
+    """
+    await ctx.send(
+        "**Yumi Admin Tools:**\n"
+        "- `!yumi_lockdown` — Only Yumi can talk in this channel (toggle)\n"
+        "- `!yumi_unlock` — Remove lockdown, everyone can talk again\n"
+        "- `!yumi_purge <N>` — Delete the last N messages (admin only)\n"
+        "- `!yumi_say <message>` — Make Yumi say something (admin only)\n"
+        "- `!yumi_admin_tools` — Show this help message\n"
+    )
+
+# --- LOCKDOWN COMMANDS ---
+LOCKED_CHANNELS = defaultdict(set)  # {guild_id: set(channel_ids)}
+
+@bot.command()
+@commands.check_any(commands.has_permissions(administrator=True), admin_only())
+async def yumi_lockdown(ctx):
+    """
+    Only allow Yumi to talk in this channel (toggle on).
+    """
+    channel = ctx.channel
+    guild = ctx.guild
+    LOCKED_CHANNELS[guild.id].add(channel.id)
+    overwrite = discord.PermissionOverwrite()
+    overwrite.send_messages = False
+    try:
+        await channel.set_permissions(guild.default_role, overwrite=overwrite)
+        await ctx.send(f"🔒 Yumi is now locked to <#{channel.id}>. She will only reply in this channel until unlocked.\n"
+                       f"Use `!yumi_unlock` in this channel to remove lockdown, or use `!yumi_lockdown` in another channel to move her.")
+    except Exception as e:
+        await ctx.send(f"⚠️ Lockdown failed: {e}")
+    print(f"[DEBUG] Lockdown set for guild {guild.id} channel {channel.id}")
+
+@bot.command()
+@commands.check_any(commands.has_permissions(administrator=True), admin_only())
+async def yumi_unlock(ctx):
+    """
+    Remove lockdown, allow everyone to talk again.
+    """
+    channel = ctx.channel
+    guild = ctx.guild
+    await channel.set_permissions(guild.default_role, overwrite=None)
+    await ctx.send("🔓 Lockdown lifted! Everyone can talk again.")
+    LOCKED_CHANNELS[guild.id].discard(channel.id)
+
+# --- PURGE COMMAND ---
+@bot.command()
+@commands.check_any(commands.has_permissions(administrator=True), admin_only())
+async def yumi_purge(ctx, count: int):
+    """
+    Delete the last N messages in this channel (admin only).
+    """
+    await ctx.channel.purge(limit=count+1)  # +1 to include the command message
+    await ctx.send(f"🧹 Deleted the last {count} messages.", delete_after=5)
+
+# --- SAY COMMAND ---
+@bot.command()
+@commands.check_any(commands.has_permissions(administrator=True), admin_only())
+async def yumi_say(ctx, *, message: str):
+    """
+    Make Yumi say something as the bot (admin only).
+    """
+    await ctx.message.delete()
+    await ctx.send(message)
+
 @bot.event
 async def on_message(message):
     if message.author == bot.user:
         return
-    # Always process commands first
     ctx = await bot.get_context(message)
     if ctx.valid:
         await bot.process_commands(message)
         return
+    # --- Per-user, per-channel context for servers ---
+    if message.guild is not None:
+        convo_key = f"{message.guild.id}:{message.channel.id}:{message.author.id}"
+    else:
+        convo_key = message.author.id
+    # Only allow Yumi to reply in a locked channel (but always allow commands)
+    if message.guild is not None:
+        locked = message.channel.id in LOCKED_CHANNELS.get(message.guild.id, set())
+        if not locked:
+            return  # Ignore all non-command messages outside locked channel
     set_mode_for_context(message)
     INTERACTED_USERS.add(message.author.id)
     # --- Per-user name learning ---
     user_id = message.author.id
     user_input = message.content.strip()
-    # Detect 'my name is ...' or 'i am ...' patterns
     import re
-    # Improved name extraction: only update if pattern is a clear introduction
     name_patterns = [
         r".*\bmy name is\s+([A-Za-z][A-ZaZ0-9_\-]{2,31})\b",
         r".*\bcall me\s+([A-Za-z][A-ZaZ0-9_\-]{2,31})\b",
@@ -375,12 +509,16 @@ async def on_message(message):
             save_user_names()
             await message.channel.send(f"Nice to meet you, {name_candidate}!")
             return
+    # --- Lockdown logic: respond to any message in locked channels ---
     if message.guild is not None:
-        mentioned = bot.user in message.mentions
-        replied = message.reference and message.reference.resolved and message.reference.resolved.author == bot.user
-        if not (mentioned or replied):
-            return
-    convo_key = message.channel.id if message.guild else message.author.id
+        locked = message.channel.id in LOCKED_CHANNELS.get(message.guild.id, set())
+        if locked:
+            pass  # Yumi will respond to any message in this channel
+        else:
+            mentioned = bot.user in message.mentions
+            replied = message.reference and message.reference.resolved and message.reference.resolved.author == bot.user
+            if not (mentioned or replied):
+                return
     # Image captioning
     if message.attachments and BLIP_READY:
         for attachment in message.attachments:
@@ -649,18 +787,6 @@ async def on_reaction_add(reaction, user):
                 feedback_scores[orig_question] = {'up': 0, 'down': 0}
                 save_feedback_scores(feedback_scores)
 
-# --- Admin user ID ---
-ADMIN_USER_ID = 594793428634566666
-
-def is_admin(user):
-    return getattr(user, 'id', None) == ADMIN_USER_ID
-
-def admin_only():
-    def predicate(ctx):
-        return is_admin(ctx.author)
-    from discord.ext.commands import check
-    return check(predicate)
-
 # Command to change Yumi's mode (exempt from AI logic)
 @bot.command()
 async def yumi_mode(ctx, mode: str):
@@ -669,7 +795,7 @@ async def yumi_mode(ctx, mode: str):
         set_context_mode(ctx, mode)
         # Update status immediately
         persona_status = {
-            'normal': "Your flirty AI waifu 💖 | !yumi_help",
+            'normal': "Your friendly, caring AI companion 🤗 | !yumi_help",
             'mistress': "Mistress Yumi is in control 👠 | !yumi_mode",
             'bdsm': "Dungeon open. Safe words ready. 🖤 | !yumi_mode",
             'girlfriend': "Your playful AI girlfriend 💌 | !yumi_mode",
@@ -696,7 +822,7 @@ async def yumi_mode(ctx, mode: str):
         set_persona_mode(mode)
         # Appealing mode change message
         mode_titles = {
-            'normal': "Flirty Waifu",
+            'normal': "Normal",
             'mistress': "Mistress",
             'bdsm': "Dungeon Mistress",
             'girlfriend': "Girlfriend",
@@ -731,7 +857,7 @@ async def yumi_mode(ctx, mode: str):
 async def rotate_status_task():
     await bot.wait_until_ready()
     persona_status = {
-        'normal': "Your flirty AI waifu 💖 | !yumi_help",
+        'normal': "Your friendly, caring AI companion 🤗 | !yumi_help",
         'mistress': "Mistress Yumi is in control 👠 | !yumi_mode",
         'bdsm': "Dungeon open. Safe words ready. 🖤 | !yumi_mode",
         'girlfriend': "Your playful AI girlfriend 💌 | !yumi_mode",
