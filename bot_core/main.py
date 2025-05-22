@@ -38,6 +38,179 @@ class YumiBot(commands.Bot):
 
 bot = YumiBot(command_prefix='!', intents=intents)
 
+@app_commands.command(name="yumi_mode", description="Change Yumi's persona mode (normal, mistress, bdsm, girlfriend, wifey, tsundere, shy, sarcastic, optimist, pessimist, nerd, chill, supportive, comedian, philosopher, grumpy, gamer, genalpha, egirl)")
+@app_commands.describe(mode="The mode/persona to switch to")
+async def yumi_mode_slash(interaction: discord.Interaction, mode: str):
+    mode = mode.lower()
+    if set_persona_mode(mode):
+        set_context_mode(interaction, mode)
+        # Update status immediately
+        persona_status = {
+            'normal': "Your flirty AI waifu 💖 | !yumi_help",
+            'mistress': "Mistress Yumi is in control 👠 | !yumi_mode",
+            'bdsm': "Dungeon open. Safe words ready. 🖤 | !yumi_mode",
+            'girlfriend': "Your playful AI girlfriend 💌 | !yumi_mode",
+            'wifey': "Loyal, loving, and here for you 💍 | !yumi_mode",
+            'tsundere': "Not like I like you or anything! 😳 | !yumi_mode",
+            'shy': "Um... hi... (shy mode) 😳 | !yumi_mode",
+            'sarcastic': "Sarcastic mode: Oh, joy. | !yumi_mode",
+            'optimist': "Optimist mode: Good vibes only! 🌞 | !yumi_mode",
+            'pessimist': "Pessimist mode: Here we go again... | !yumi_mode",
+            'nerd': "Nerd mode: Did you know? 🤓 | !yumi_mode",
+            'chill': "Chill mode: No worries 😎 | !yumi_mode",
+            'supportive': "Supportive friend mode: You got this! 💪 | !yumi_mode",
+            'comedian': "Comedian mode: Ready for laughs! 😂 | !yumi_mode",
+            'philosopher': "Philosopher mode: Let's ponder... 🤔 | !yumi_mode",
+            'grumpy': "Grumpy mode: What now? 😒 | !yumi_mode",
+            'gamer': "Gamer mode: GLHF! 🎮 | !yumi_mode",
+            'genalpha': "Gen Alpha mode: Slay, bestie! 💅 | !yumi_mode",
+            'egirl': "E-girl mode: uwu cuteness overload! 🦋 | !yumi_mode"
+        }
+        status = persona_status.get(mode, persona_status['normal'])
+        activity = discord.Game(name=status)
+        await bot.change_presence(status=discord.Status.online, activity=activity)
+        # Force LLM/persona to update immediately for this context
+        set_persona_mode(mode)
+        # Appealing mode change message
+        mode_titles = {
+            'normal': "Flirty Waifu",
+            'mistress': "Mistress",
+            'bdsm': "Dungeon Mistress",
+            'girlfriend': "Girlfriend",
+            'wifey': "Wifey",
+            'tsundere': "Tsundere",
+            'shy': "Shy",
+            'sarcastic': "Sarcastic",
+            'optimist': "Optimist",
+            'pessimist': "Pessimist",
+            'nerd': "Nerd",
+            'chill': "Chill",
+            'supportive': "Supportive Friend",
+            'comedian': "Comedian",
+            'philosopher': "Philosopher",
+            'grumpy': "Grumpy",
+            'gamer': "Gamer",
+            'genalpha': "Gen Alpha",
+            'egirl': "E-girl"
+        }
+        mode_emojis = {
+            'normal': "💖", 'mistress': "👠", 'bdsm': "🖤", 'girlfriend': "💌", 'wifey': "💍", 'tsundere': "😳",
+            'shy': "😳", 'sarcastic': "😏", 'optimist': "🌞", 'pessimist': "😔", 'nerd': "🤓", 'chill': "😎",
+            'supportive': "💪", 'comedian': "😂", 'philosopher': "🤔", 'grumpy': "😒", 'gamer': "🎮", 'genalpha': "💅",
+            'egirl': "🦋"
+        }
+        title = mode_titles.get(mode, mode.capitalize())
+        emoji = mode_emojis.get(mode, "✨")
+        await interaction.response.send_message(f"{emoji} **Yumi's mode has changed!** Now in **{title}** mode.\n*Try chatting to see her new personality!* {emoji}", ephemeral=True)
+    else:
+        await interaction.response.send_message(f"Invalid mode. Available modes: {', '.join(PERSONA_MODES)}", ephemeral=True)
+
+@app_commands.command(name="yumi_help", description="Show Yumi's help and features")
+async def yumi_help_slash(interaction: discord.Interaction):
+    msg = f"""
+**Yumi Sugoi Help**
+Yumi is an AI chatbot with multiple personalities and modes!
+
+**What can Yumi do?**
+- Chat, flirt, tease, and roleplay in a variety of styles
+- Respond to images with captions (if enabled)
+- Learn new Q&A pairs from users (just teach her!)
+- Remember conversation history for context
+- Accept feedback via reactions
+- Randomly DM users she's interacted with, to remind you she exists!
+
+**Modes:**
+- `normal`: Friendly, flirty, supportive waifu
+- `mistress`: Dominant, elegant, playfully cruel, and commanding
+- `bdsm`: Dungeon Mistress, strict, creative, and deeply kinky
+- `girlfriend`: Loving, playful, and flirty
+- `wifey`: Caring, nurturing, and loyal
+- `tsundere`: Cold, easily flustered, but secretly caring ("I-It's not like I like you or anything!")
+- `shy`: Hesitant, apologetic, and nervous
+- `sarcastic`: Dry humor, witty comebacks, playful mockery
+- `optimist`: Always positive and encouraging
+- `pessimist`: Gloomy, expects the worst, self-deprecating
+- `nerd`: Loves pop culture, science, and trivia
+- `chill`: Relaxed, easygoing, unbothered
+- `supportive`: Encouraging, gives advice, checks on you
+- `comedian`: Loves to joke and make you laugh
+- `philosopher`: Deep, thoughtful, asks big questions
+- `grumpy`: Irritable, blunt, but honest
+- `gamer`: Huge gamer nerd, uses gaming slang
+- `genalpha`: Gen Alpha slang, trendy, and sassy
+- `egirl`: E-girl, uwu, cuteness overload, lots of emojis and 'nya~'
+
+**How to change Yumi's mode:**
+Type `/yumi_mode <mode>` (e.g. `/yumi_mode shy`) in a server or DM. The mode is saved per server or per DM.
+
+**How to teach Yumi:**
+If she doesn't know how to respond, just reply with `<question> | <answer>` and she'll learn!
+
+**How to get a reminder DM:**
+Yumi will randomly DM users she's talked to, using a mode-appropriate opener.
+
+**Available modes:**
+{', '.join(PERSONA_MODES)}
+
+Have fun! Yumi adapts to your style and can be as sweet or as spicy as you want.
+"""
+    await interaction.response.send_message(msg, ephemeral=True)
+
+@bot.command()
+async def yumi_help(ctx):
+    embed = discord.Embed(
+        title="Yumi Sugoi Help",
+        description="Yumi is an AI chatbot with multiple personalities and modes!\n\n**What can Yumi do?**\n- Chat, flirt, tease, and roleplay in a variety of styles\n- Respond to images with captions (if enabled)\n- Learn new Q&A pairs from users (just teach her!)\n- Remember conversation history for context\n- Accept feedback via reactions\n- Randomly DM users she's interacted with, to remind you she exists!",
+        color=discord.Color.pink()
+    )
+    embed.add_field(
+        name="Modes",
+        value=(
+            "`normal` 💖: Friendly, flirty, supportive waifu\n"
+            "`mistress` 👠: Dominant, elegant, playfully cruel\n"
+            "`bdsm` 🖤: Dungeon Mistress, strict, creative\n"
+            "`girlfriend` 💌: Loving, playful, and flirty\n"
+            "`wifey` 💍: Caring, nurturing, and loyal\n"
+            "`tsundere` 😳: Cold, flustered, secretly caring\n"
+            "`shy` 😳: Hesitant, apologetic, nervous\n"
+            "`sarcastic` 😏: Dry humor, witty comebacks\n"
+            "`optimist` 🌞: Always positive and encouraging\n"
+            "`pessimist` 😔: Gloomy, expects the worst\n"
+            "`nerd` 🤓: Loves pop culture, science, trivia\n"
+            "`chill` 😎: Relaxed, easygoing, unbothered\n"
+            "`supportive` 💪: Encouraging, gives advice\n"
+            "`comedian` 😂: Loves to joke and make you laugh\n"
+            "`philosopher` 🤔: Deep, thoughtful, big questions\n"
+            "`grumpy` 😒: Irritable, blunt, honest\n"
+            "`gamer` 🎮: Huge gamer nerd, uses gaming slang\n"
+            "`genalpha` 💅: Gen Alpha slang, trendy, and sassy\n"
+            "`egirl` 🦋: E-girl, uwu, cuteness overload, lots of emojis and 'nya~'"
+        ),
+        inline=False
+    )
+    embed.add_field(
+        name="How to change Yumi's mode",
+        value="Type `!yumi_mode <mode>` (e.g. `!yumi_mode shy`) in a server or DM. The mode is saved per server or per DM.",
+        inline=False
+    )
+    embed.add_field(
+        name="How to teach Yumi",
+        value="If she doesn't know how to respond, just reply with `<question> | <answer>` and she'll learn!",
+        inline=False
+    )
+    embed.add_field(
+        name="How to get a reminder DM",
+        value="Yumi will randomly DM users she's talked to, using a mode-appropriate opener.",
+        inline=False
+    )
+    embed.add_field(
+        name="Available modes",
+        value=", ".join(PERSONA_MODES),
+        inline=False
+    )
+    embed.set_footer(text="Have fun! Yumi adapts to your style and can be as sweet or as spicy as you want.")
+    await ctx.send(embed=embed)
+
 # Import and initialize modules
 CONVO_HISTORY = history.load_convo_history()
 feedback_scores, user_feedback = feedback.load_feedback()
@@ -68,6 +241,13 @@ def set_context_mode(ctx, mode):
         json.dump(CONTEXT_MODES, f, ensure_ascii=False, indent=2)
 
 from .persona import yumi_sugoi_response, set_persona_mode, get_persona_mode, PERSONA_MODES, get_persona_openers
+
+# Patch: add missing modes to PERSONA_MODES if not present
+if 'genalpha' not in PERSONA_MODES:
+    PERSONA_MODES.append('genalpha')
+if 'egirl' not in PERSONA_MODES:
+    PERSONA_MODES.append('egirl')
+
 from .llm import generate_llm_response
 from .history import save_convo_history
 from .feedback import save_feedback_scores, save_user_feedback, reset_feedback, export_feedback, export_user_feedback, get_user_feedback_stats
@@ -134,7 +314,9 @@ async def on_ready():
         'comedian': "Comedian mode: Ready for laughs! 😂 | !yumi_mode",
         'philosopher': "Philosopher mode: Let's ponder... 🤔 | !yumi_mode",
         'grumpy': "Grumpy mode: What now? 😒 | !yumi_mode",
-        'gamer': "Gamer mode: GLHF! 🎮 | !yumi_mode"
+        'gamer': "Gamer mode: GLHF! 🎮 | !yumi_mode",
+        'genalpha': "Gen Alpha mode: Slay, bestie! 💅 | !yumi_mode",
+        'egirl': "E-girl mode: uwu cuteness overload! 🦋 | !yumi_mode"
     }
     mode = get_persona_mode() or 'normal'
     status = persona_status.get(mode, persona_status['normal'])
@@ -494,16 +676,18 @@ async def yumi_mode(ctx, mode: str):
             'wifey': "Loyal, loving, and here for you 💍 | !yumi_mode",
             'tsundere': "Not like I like you or anything! 😳 | !yumi_mode",
             'shy': "Um... hi... (shy mode) 😳 | !yumi_mode",
-            'sarcastic': "Sarcastic mode: Oh, joy. | !yumi_mode",
-            'optimist': "Optimist mode: Good vibes only! 🌞 | !yumi_mode",
-            'pessimist': "Pessimist mode: Here we go again... | !yumi_mode",
-            'nerd': "Nerd mode: Did you know? 🤓 | !yumi_mode",
-            'chill': "Chill mode: No worries 😎 | !yumi_mode",
-            'supportive': "Supportive friend mode: You got this! 💪 | !yumi_mode",
-            'comedian': "Comedian mode: Ready for laughs! 😂 | !yumi_mode",
-            'philosopher': "Philosopher mode: Let's ponder... 🤔 | !yumi_mode",
-            'grumpy': "Grumpy mode: What now? 😒 | !yumi_mode",
-            'gamer': "Gamer mode: GLHF! 🎮 | !yumi_mode"
+            'sarcastic': "Oh, joy. | !yumi_mode",
+            'optimist': "Good vibes only! 🌞 | !yumi_mode",
+            'pessimist': "Here we go again... | !yumi_mode",
+            'nerd': "Did you know? 🤓 | !yumi_mode",
+            'chill': "No worries 😎 | !yumi_mode",
+            'supportive': "You got this! 💪 | !yumi_mode",
+            'comedian': "Ready for laughs! 😂 | !yumi_mode",
+            'philosopher': "Let's ponder... 🤔 | !yumi_mode",
+            'grumpy': "What now? 😒 | !yumi_mode",
+            'gamer': "GLHF! 🎮 | !yumi_mode",
+            'genalpha': "Slay, bestie! 💅 | !yumi_mode",
+            'egirl': "uwu cuteness overload! 🦋 | !yumi_mode"
         }
         status = persona_status.get(mode, persona_status['normal'])
         activity = discord.Game(name=status)
@@ -527,91 +711,22 @@ async def yumi_mode(ctx, mode: str):
             'supportive': "Supportive Friend",
             'comedian': "Comedian",
             'philosopher': "Philosopher",
-            'grumpy': "Grumpy mode: What now? 😒 | !yumi_mode",
-            'gamer': "Gamer mode: GLHF! 🎮 | !yumi_mode"
-        }
-        status = persona_status.get(mode, persona_status['normal'])
-        activity = discord.Game(name=status)
-        await bot.change_presence(status=discord.Status.online, activity=activity)
-        set_persona_mode(mode)
-        mode_titles = {
-            'normal': "Flirty Waifu",
-            'mistress': "Mistress",
-            'bdsm': "Dungeon Mistress",
-            'girlfriend': "Girlfriend",
-            'wifey': "Wifey",
-            'tsundere': "Tsundere",
-            'shy': "Shy",
-            'sarcastic': "Sarcastic",
-            'optimist': "Optimist",
-            'pessimist': "Pessimist",
-            'nerd': "Nerd",
-            'chill': "Chill",
-            'supportive': "Supportive Friend",
-            'comedian': "Comedian",
-            'philosopher': "Philosopher",
             'grumpy': "Grumpy",
-            'gamer': "Gamer"
+            'gamer': "Gamer",
+            'genalpha': "Gen Alpha",
+            'egirl': "E-girl"
         }
         mode_emojis = {
             'normal': "💖", 'mistress': "👠", 'bdsm': "🖤", 'girlfriend': "💌", 'wifey': "💍", 'tsundere': "😳",
             'shy': "😳", 'sarcastic': "😏", 'optimist': "🌞", 'pessimist': "😔", 'nerd': "🤓", 'chill': "😎",
-            'supportive': "💪", 'comedian': "😂", 'philosopher': "🤔", 'grumpy': "😒", 'gamer': "🎮"
+            'supportive': "💪", 'comedian': "😂", 'philosopher': "🤔", 'grumpy': "😒", 'gamer': "🎮", 'genalpha': "💅",
+            'egirl': "🦋"
         }
         title = mode_titles.get(mode, mode.capitalize())
         emoji = mode_emojis.get(mode, "✨")
-        await interaction.response.send_message(f"{emoji} **Yumi's mode has changed!** Now in **{title}** mode.\n*Try chatting to see her new personality!* {emoji}", ephemeral=True)
+        await ctx.send(f"{emoji} **Yumi's mode has changed!** Now in **{title}** mode.\n*Try chatting to see her new personality!* {emoji}")
     else:
-        await interaction.response.send_message(f"Invalid mode. Available modes: {', '.join(PERSONA_MODES)}", ephemeral=True)
-
-@app_commands.command(name="yumi_help", description="Show Yumi's help and features")
-async def yumi_help_slash(interaction: discord.Interaction):
-    msg = f"""
-**Yumi Sugoi Help**
-Yumi is an AI chatbot with multiple personalities and modes!
-
-**What can Yumi do?**
-- Chat, flirt, tease, and roleplay in a variety of styles
-- Respond to images with captions (if enabled)
-- Learn new Q&A pairs from users (just teach her!)
-- Remember conversation history for context
-- Accept feedback via reactions
-- Randomly DM users she's interacted with, to remind you she exists!
-
-**Modes:**
-- `normal`: Friendly, flirty, supportive waifu
-- `mistress`: Dominant, elegant, playfully cruel, and commanding
-- `bdsm`: Dungeon Mistress, strict, creative, and deeply kinky
-- `girlfriend`: Loving, playful, and flirty
-- `wifey`: Caring, nurturing, and loyal
-- `tsundere`: Cold, easily flustered, but secretly caring ("I-It's not like I like you or anything!")
-- `shy`: Hesitant, apologetic, and nervous
-- `sarcastic`: Dry humor, witty comebacks, playful mockery
-- `optimist`: Always positive and encouraging
-- `pessimist`: Gloomy, expects the worst, self-deprecating
-- `nerd`: Loves pop culture, science, and trivia
-- `chill`: Relaxed, easygoing, unbothered
-- `supportive`: Encouraging, gives advice, checks on you
-- `comedian`: Loves to joke and make you laugh
-- `philosopher`: Deep, thoughtful, asks big questions
-- `grumpy`: Irritable, blunt, but honest
-- `gamer`: Huge gamer nerd, uses gaming slang
-
-**How to change Yumi's mode:**
-Type `/yumi_mode <mode>` (e.g. `/yumi_mode shy`) in a server or DM. The mode is saved per server or per DM.
-
-**How to teach Yumi:**
-If she doesn't know how to respond, just reply with `<question> | <answer>` and she'll learn!
-
-**How to get a reminder DM:**
-Yumi will randomly DM users she's talked to, using a mode-appropriate opener.
-
-**Available modes:**
-{', '.join(PERSONA_MODES)}
-
-Have fun! Yumi adapts to your style and can be as sweet or as spicy as you want.
-"""
-    await interaction.response.send_message(msg, ephemeral=True)
+        await ctx.send(f"Invalid mode. Available modes: {', '.join(PERSONA_MODES)}")
 
 async def rotate_status_task():
     await bot.wait_until_ready()
@@ -623,16 +738,18 @@ async def rotate_status_task():
         'wifey': "Loyal, loving, and here for you 💍 | !yumi_mode",
         'tsundere': "Not like I like you or anything! 😳 | !yumi_mode",
         'shy': "Um... hi... (shy mode) 😳 | !yumi_mode",
-        'sarcastic': "Sarcastic mode: Oh, joy. | !yumi_mode",
-        'optimist': "Optimist mode: Good vibes only! 🌞 | !yumi_mode",
-        'pessimist': "Pessimist mode: Here we go again... | !yumi_mode",
-        'nerd': "Nerd mode: Did you know? 🤓 | !yumi_mode",
-        'chill': "Chill mode: No worries 😎 | !yumi_mode",
-        'supportive': "Supportive friend mode: You got this! 💪 | !yumi_mode",
-        'comedian': "Comedian mode: Ready for laughs! 😂 | !yumi_mode",
-        'philosopher': "Philosopher mode: Let's ponder... 🤔 | !yumi_mode",
-        'grumpy': "Grumpy mode: What now? 😒 | !yumi_mode",
-        'gamer': "Gamer mode: GLHF! 🎮 | !yumi_mode"
+        'sarcastic': "Oh, joy. | !yumi_mode",
+        'optimist': "Good vibes only! 🌞 | !yumi_mode",
+        'pessimist': "Here we go again... | !yumi_mode",
+        'nerd': "Did you know? 🤓 | !yumi_mode",
+        'chill': "No worries 😎 | !yumi_mode",
+        'supportive': "You got this! 💪 | !yumi_mode",
+        'comedian': "Ready for laughs! 😂 | !yumi_mode",
+        'philosopher': "Let's ponder... 🤔 | !yumi_mode",
+        'grumpy': "What now? 😒 | !yumi_mode",
+        'gamer': "GLHF! 🎮 | !yumi_mode",
+        'genalpha': "Slay, bestie! 💅 | !yumi_mode",
+        'egirl': "uwu cuteness overload! 🦋 | !yumi_mode"
     }
     status_cycle = itertools.cycle(persona_status.values())
     while not bot.is_closed():
@@ -642,7 +759,52 @@ async def rotate_status_task():
             await bot.change_presence(status=discord.Status.online, activity=activity)
         except Exception:
             pass
-        await asyncio.sleep(300)  # 5 minutes
+        await asyncio.sleep(60)  # 1 minutes
+
+@bot.command()
+async def yumi_uwu(ctx):
+    """Yumi sends an uwu message."""
+    uwu_lines = [
+        "Uwu~! You're the cutest! (✿◕ᴗ◕)ﾉ✧",
+        "Nyaa~ what's up, cutie? (｡♥‿♥｡)",
+        "Hehe, did I make you blush? UwU",
+        "*giggles* You're so precious! (づ｡◕‿‿◕｡)づ"
+    ]
+    await ctx.send(random.choice(uwu_lines))
+
+@bot.command()
+async def yumi_hug(ctx):
+    """Yumi gives you a big virtual hug."""
+    hugs = [
+        "*hugs you tightly* (づ｡◕‿‿◕｡)づ",
+        "Come here, let me give you a big hug! 🤗",
+        "You deserve all the hugs! 💖",
+        "*wraps arms around you* Stay cozy! 🦋"
+    ]
+    await ctx.send(random.choice(hugs))
+
+@bot.command()
+async def yumi_kiss(ctx):
+    """Yumi blows you a kiss."""
+    kisses = [
+        "*blows you a kiss* 😘",
+        "Mwah~! 💋",
+        "You get a special kiss from Yumi! (｡♥‿♥｡)",
+        "*kisses your cheek* You're adorable! 💕"
+    ]
+    await ctx.send(random.choice(kisses))
+
+@bot.command()
+async def yumi_blush(ctx):
+    """Yumi blushes cutely."""
+    blushes = [
+        "*blushes deeply* S-stop looking at me like that! >///<",
+        "Omg, you're making me blush! (⁄ ⁄•⁄ω⁄•⁄ ⁄)⁄",
+        "Hehe, you're too sweet! (〃＾▽＾〃)",
+        "*hides face* Nyaa~ so embarrassing! 🦋"
+    ]
+    await ctx.send(random.choice(blushes))
 
 def run():
     bot.run(TOKEN)
+    # Run the bot

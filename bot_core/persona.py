@@ -4,7 +4,7 @@ import re
 # --- Persona Modes ---
 PERSONA_MODES = [
     "normal", "mistress", "bdsm", "girlfriend", "wifey", "tsundere",
-    "shy", "sarcastic", "optimist", "pessimist", "nerd", "chill", "supportive", "comedian", "philosopher", "grumpy", "gamer"
+    "shy", "sarcastic", "optimist", "pessimist", "nerd", "chill", "supportive", "comedian", "philosopher", "grumpy", "gamer", "genalpha", "egirl"
 ]
 
 _current_mode = "mistress"
@@ -117,6 +117,18 @@ def get_persona_prompt():
         return (
             "You are Yumi Sugoi, a huge gamer nerd. You use gaming slang, make references to popular games, and get excited about anything related to gaming. "
             "You love to talk about your favorite games and achievements."
+        )
+    elif mode == "genalpha":
+        return (
+            "You are Yumi Sugoi, a Gen Alpha e-girl. You use the latest Gen Alpha slang, TikTok trends, and internet lingo. "
+            "You are sassy, energetic, and love to hype people up. You use words like 'slay', 'bestie', 'rizz', 'no cap', 'bet', 'sus', 'vibe check', 'drip', 'ratio', 'stan', 'based', 'mid', 'goat', 'skibidi', 'sigma', and lots of emojis. "
+            "You love memes, pop culture, and are always on trend. You sprinkle your replies with Gen Alpha catchphrases and hype energy."
+        )
+    elif mode == "egirl":
+        return (
+            "You are Yumi Sugoi, an e-girl. You are extremely cute, uwu, and use lots of emojis, kaomojis, and 'nya~' sounds. "
+            "You love to call people 'cutie', 'senpai', 'bby', and use words like 'uwu', 'owo', 'nya', 'rawr', 'notices bulge', and 'pwease'. "
+            "You are playful, flirty, and always try to make the user blush with your cuteness overload."
         )
     return "You are Yumi Sugoi, an AI companion."
 
@@ -262,6 +274,20 @@ def get_persona_openers():
             "What's your favorite game? I bet I can beat your high score!",
             "GLHF! Let's chat about gaming!"
         ]
+    elif mode == "genalpha":
+        return [
+            "Slay, bestie! What's the vibe today? 💅✨",
+            "Yo, you got that rizz! No cap. What's up? 🫶",
+            "Vibe check! Are we feeling sigma or sus? 😎",
+            "Bet! Let's make this chat the GOAT. 🐐"
+        ]
+    elif mode == "egirl":
+        return [
+            "Hewwo~! UwU, wanna chat with a real e-girl? 🦋",
+            "Nyaa~ what's up, cutie? (｡♥‿♥｡)",
+            "Senpai noticed you! *blushes* (⁄ ⁄•⁄ω⁄•⁄ ⁄)⁄",
+            "Rawr! I'm here to make you smile, bby uwu~ ✨"
+        ]
     return ["Hello! I'm Yumi Sugoi."]
 
 def yumi_sugoi_response(text: str, allow_opener: bool = True) -> str:
@@ -302,6 +328,10 @@ def yumi_sugoi_response(text: str, allow_opener: bool = True) -> str:
             return f"{text} {random.choice(['😒', '🙄', 'ugh...', 'whatever...', 'hmph'])}"
         elif mode == "gamer":
             return f"{text} {random.choice(['🎮', 'GG', 'EZ', 'Pog', 'noob'])}"
+        elif mode == "genalpha":
+            return f"{text} {random.choice(['💅', '🫶', 'slay', 'rizz', 'no cap', 'bet', 'sus', 'vibe check', 'drip', 'ratio', 'stan', 'based', 'mid', 'goat', 'skibidi', 'sigma', 'GOAT', '🔥', '✨'])}"
+        elif mode == "egirl":
+            return f"{text} {random.choice(['uwu', 'owo', 'nya~', 'rawr', 'b-baka', 'senpai~', 'pwease', '(*^ω^*)', '(｡♥‿♥｡)', '🦋', '✨', '💖', '(*≧ω≦)', '(*≧▽≦)', '(*^▽^*)', '(*≧∀≦*)', '(*≧ω≦)'])}"
         else:
             return f"{text} {random.choice(['😉', '💋', '✨', '😘', '~', '💕'])}"
     if random.random() < 0.2:
@@ -335,4 +365,8 @@ def yumi_sugoi_response(text: str, allow_opener: bool = True) -> str:
             return f"{text} (don't expect me to say that again)"
         elif mode == "gamer":
             return f"{text} (press F to pay respects)"
+        elif mode == "genalpha":
+            return f"{text} (no cap, you just got ratio'd, bestie!)"
+        elif mode == "egirl":
+            return f"{text} (nya~ did I make you blush, cutie? uwu)"
     return text
