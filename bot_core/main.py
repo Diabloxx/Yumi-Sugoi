@@ -122,7 +122,8 @@ async def on_ready():
         'mistress': "Mistress Yumi is in control 👠 | !yumi_mode",
         'bdsm': "Dungeon open. Safe words ready. 🖤 | !yumi_mode",
         'girlfriend': "Your playful AI girlfriend 💌 | !yumi_mode",
-        'wifey': "Loyal, loving, and here for you 💍 | !yumi_mode"
+        'wifey': "Loyal, loving, and here for you 💍 | !yumi_mode",
+        'tsundere': "Not like I like you or anything! 😳 | !yumi_mode"
     }
     mode = get_persona_mode() or 'normal'
     status = persona_status.get(mode, persona_status['normal'])
@@ -480,7 +481,8 @@ async def yumi_mode(ctx, mode: str):
             'mistress': "Mistress Yumi is in control 👠 | !yumi_mode",
             'bdsm': "Dungeon open. Safe words ready. 🖤 | !yumi_mode",
             'girlfriend': "Your playful AI girlfriend 💌 | !yumi_mode",
-            'wifey': "Loyal, loving, and here for you 💍 | !yumi_mode"
+            'wifey': "Loyal, loving, and here for you 💍 | !yumi_mode",
+            'tsundere': "Not like I like you or anything! 😳 | !yumi_mode"
         }
         status = persona_status.get(mode, persona_status['normal'])
         activity = discord.Game(name=status)
@@ -510,6 +512,7 @@ Yumi is an AI chatbot with multiple personalities and modes!
 - `bdsm`: Dungeon Mistress, strict, creative, and deeply kinky
 - `girlfriend`: Loving, playful, and flirty
 - `wifey`: Caring, nurturing, and loyal
+- `tsundere`: Cold, easily flustered, but secretly caring ("I-It's not like I like you or anything!")
 
 **How to change Yumi's mode:**
 Type `!yumi_mode <mode>` (e.g. `!yumi_mode mistress`) in a server or DM. The mode is saved per server or per DM.
@@ -527,7 +530,7 @@ Have fun! Yumi adapts to your style and can be as sweet or as spicy as you want.
 """
     await ctx.send(msg)
 
-@app_commands.command(name="yumi_mode", description="Change Yumi's persona mode (normal, mistress, bdsm, girlfriend, wifey)")
+@app_commands.command(name="yumi_mode", description="Change Yumi's persona mode (normal, mistress, bdsm, girlfriend, wifey, tsundere)")
 @app_commands.describe(mode="The mode/persona to switch to")
 async def yumi_mode_slash(interaction: discord.Interaction, mode: str):
     mode = mode.lower()
@@ -538,7 +541,8 @@ async def yumi_mode_slash(interaction: discord.Interaction, mode: str):
             'mistress': "Mistress Yumi is in control 👠 | !yumi_mode",
             'bdsm': "Dungeon open. Safe words ready. 🖤 | !yumi_mode",
             'girlfriend': "Your playful AI girlfriend 💌 | !yumi_mode",
-            'wifey': "Loyal, loving, and here for you 💍 | !yumi_mode"
+            'wifey': "Loyal, loving, and here for you 💍 | !yumi_mode",
+            'tsundere': "Not like I like you or anything! 😳 | !yumi_mode"
         }
         status = persona_status.get(mode, persona_status['normal'])
         activity = discord.Game(name=status)
@@ -567,6 +571,7 @@ Yumi is an AI chatbot with multiple personalities and modes!
 - `bdsm`: Dungeon Mistress, strict, creative, and deeply kinky
 - `girlfriend`: Loving, playful, and flirty
 - `wifey`: Caring, nurturing, and loyal
+- `tsundere`: Cold, easily flustered, but secretly caring ("I-It's not like I like you or anything!")
 
 **How to change Yumi's mode:**
 Type `/yumi_mode <mode>` (e.g. `/yumi_mode mistress`) in a server or DM. The mode is saved per server or per DM.
@@ -591,7 +596,8 @@ async def rotate_status_task():
         'mistress': "Mistress Yumi is in control 👠 | !yumi_mode",
         'bdsm': "Dungeon open. Safe words ready. 🖤 | !yumi_mode",
         'girlfriend': "Your playful AI girlfriend 💌 | !yumi_mode",
-        'wifey': "Loyal, loving, and here for you 💍 | !yumi_mode"
+        'wifey': "Loyal, loving, and here for you 💍 | !yumi_mode",
+        'tsundere': "Not like I like you or anything! 😳 | !yumi_mode"
     }
     status_cycle = itertools.cycle(persona_status.values())
     while not bot.is_closed():
@@ -605,3 +611,4 @@ async def rotate_status_task():
 
 def run():
     bot.run(TOKEN)
+`
