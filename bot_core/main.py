@@ -611,4 +611,3 @@ async def rotate_status_task():
 
 def run():
     bot.run(TOKEN)
-`
