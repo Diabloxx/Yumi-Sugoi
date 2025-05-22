@@ -544,52 +544,56 @@ async def yumi_mode(ctx, mode: str):
 # Command to show help (exempt from AI logic)
 @bot.command()
 async def yumi_help(ctx):
-    msg = f"""
-**Yumi Sugoi Help**
-Yumi is an AI chatbot with multiple personalities and modes!
-
-**What can Yumi do?**
-- Chat, flirt, tease, and roleplay in a variety of styles
-- Respond to images with captions (if enabled)
-- Learn new Q&A pairs from users (just teach her!)
-- Remember conversation history for context
-- Accept feedback via reactions
-- Randomly DM users she's interacted with, to remind you she exists!
-
-**Modes:**
-- `normal`: Friendly, flirty, supportive waifu
-- `mistress`: Dominant, elegant, playfully cruel, and commanding
-- `bdsm`: Dungeon Mistress, strict, creative, and deeply kinky
-- `girlfriend`: Loving, playful, and flirty
-- `wifey`: Caring, nurturing, and loyal
-- `tsundere`: Cold, easily flustered, but secretly caring ("I-It's not like I like you or anything!")
-- `shy`: Hesitant, apologetic, and nervous
-- `sarcastic`: Dry humor, witty comebacks, playful mockery
-- `optimist`: Always positive and encouraging
-- `pessimist`: Gloomy, expects the worst, self-deprecating
-- `nerd`: Loves pop culture, science, and trivia
-- `chill`: Relaxed, easygoing, unbothered
-- `supportive`: Encouraging, gives advice, checks on you
-- `comedian`: Loves to joke and make you laugh
-- `philosopher`: Deep, thoughtful, asks big questions
-- `grumpy`: Irritable, blunt, but honest
-- `gamer`: Huge gamer nerd, uses gaming slang
-
-**How to change Yumi's mode:**
-Type `!yumi_mode <mode>` (e.g. `!yumi_mode shy`) in a server or DM. The mode is saved per server or per DM.
-
-**How to teach Yumi:**
-If she doesn't know how to respond, just reply with `<question> | <answer>` and she'll learn!
-
-**How to get a reminder DM:**
-Yumi will randomly DM users she's talked to, using a mode-appropriate opener.
-
-**Available modes:**
-{', '.join(PERSONA_MODES)}
-
-Have fun! Yumi adapts to your style and can be as sweet or as spicy as you want.
-"""
-    await ctx.send(msg)
+    embed = discord.Embed(
+        title="Yumi Sugoi Help",
+        description="Yumi is an AI chatbot with multiple personalities and modes!\n\n**What can Yumi do?**\n- Chat, flirt, tease, and roleplay in a variety of styles\n- Respond to images with captions (if enabled)\n- Learn new Q&A pairs from users (just teach her!)\n- Remember conversation history for context\n- Accept feedback via reactions\n- Randomly DM users she's interacted with, to remind you she exists!",
+        color=discord.Color.pink()
+    )
+    embed.add_field(
+        name="Modes",
+        value=(
+            "`normal` 💖: Friendly, flirty, supportive waifu\n"
+            "`mistress` 👠: Dominant, elegant, playfully cruel\n"
+            "`bdsm` 🖤: Dungeon Mistress, strict, creative\n"
+            "`girlfriend` 💌: Loving, playful, and flirty\n"
+            "`wifey` 💍: Caring, nurturing, and loyal\n"
+            "`tsundere` 😳: Cold, flustered, secretly caring\n"
+            "`shy` 😳: Hesitant, apologetic, nervous\n"
+            "`sarcastic` 😏: Dry humor, witty comebacks\n"
+            "`optimist` 🌞: Always positive and encouraging\n"
+            "`pessimist` 😔: Gloomy, expects the worst\n"
+            "`nerd` 🤓: Loves pop culture, science, trivia\n"
+            "`chill` 😎: Relaxed, easygoing, unbothered\n"
+            "`supportive` 💪: Encouraging, gives advice\n"
+            "`comedian` 😂: Loves to joke and make you laugh\n"
+            "`philosopher` 🤔: Deep, thoughtful, big questions\n"
+            "`grumpy` 😒: Irritable, blunt, honest\n"
+            "`gamer` 🎮: Huge gamer nerd, uses gaming slang"
+        ),
+        inline=False
+    )
+    embed.add_field(
+        name="How to change Yumi's mode",
+        value="Type `!yumi_mode <mode>` (e.g. `!yumi_mode shy`) in a server or DM. The mode is saved per server or per DM.",
+        inline=False
+    )
+    embed.add_field(
+        name="How to teach Yumi",
+        value="If she doesn't know how to respond, just reply with `<question> | <answer>` and she'll learn!",
+        inline=False
+    )
+    embed.add_field(
+        name="How to get a reminder DM",
+        value="Yumi will randomly DM users she's talked to, using a mode-appropriate opener.",
+        inline=False
+    )
+    embed.add_field(
+        name="Available modes",
+        value=", ".join(PERSONA_MODES),
+        inline=False
+    )
+    embed.set_footer(text="Have fun! Yumi adapts to your style and can be as sweet or as spicy as you want.")
+    await ctx.send(embed=embed)
 
 @app_commands.command(name="yumi_mode", description="Change Yumi's persona mode (normal, mistress, bdsm, girlfriend, wifey, tsundere, shy, sarcastic, optimist, pessimist, nerd, chill, supportive, comedian, philosopher, grumpy, gamer)")
 @app_commands.describe(mode="The mode/persona to switch to")
