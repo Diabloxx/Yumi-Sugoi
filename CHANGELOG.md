@@ -1,23 +1,22 @@
 # Yumi Sugoi Changelog
 
-## [Unreleased] - 2025-05-23
+## [v1.3.0] - 2025-05-23
 ### Added
-- Admin-only `!yumi_reload` command for hot-reloading bot modules and persistent data without restart.
-- Advanced persona system: custom personas, channel personas, and persona switching.
-- Scheduled announcements and reminders with persistent storage.
-- Long-term user memory (facts/preferences).
-- XP/leveling system with per-message XP and level command.
-- Fun/utility commands: polls, suggestion box, meme generator.
-- Placeholders for AI art and TTS/voice features.
-- Advanced moderation: auto-moderation and logging (message deletes, member joins).
-- Web dashboard groundwork (Flask API for personas and XP).
-
-### Changed
-- Improved persistent storage for all new features.
-- Updated help and documentation commands to reflect new features.
+- Yumi now displays a typing indicator and random delay before replying, simulating human-like conversation.
+- Persona management is fully dynamic: new custom personas are available instantly after creation, and all persona commands use the latest built-in and custom personas without restart.
+- Refactored persona commands (`list`, `activate`, `channel persona`) to always use the latest persona list.
+- Improved modularity and extensibility for future features.
 
 ### Fixed
-- Conversation history and persistent lockdown bugfixes.
+- Fixed OpenAI API error in `llm.py` by ensuring `qa_pairs` is always a dict.
+- Fixed circular import issues between persona and LLM modules.
+- Fixed type errors and infinite recursion in message handling.
+- Fixed syntax errors and improved error handling in all major features.
+
+### Changed
+- Yumi's responses are now more human-like and natural.
+- Persona and context switching is now seamless and does not require a bot restart.
+- All persistent data and persona changes are reflected instantly in commands and bot behavior.
 
 ## [v1.2.2] - 2025-05-23
 ### Fixed
