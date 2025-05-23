@@ -1,5 +1,10 @@
 # Yumi Sugoi Changelog
 
+## [v1.2.2] - 2025-05-23
+### Fixed
+- Fixed a crash on startup when loading conversation history with new per-user/channel context keys (mixed int and string keys).
+- Now gracefully handles both old and new context key formats in `convo_history.json`.
+
 ## [v1.2.1] - 2025-05-23
 ### Added
 - Persistent lockdown: Yumi now remembers which channel(s) are locked down in each server, even after a bot restart.

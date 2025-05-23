@@ -10,7 +10,12 @@ def load_convo_history():
             raw_history = json.load(f)
             convo_history = defaultdict(lambda: deque(maxlen=10))
             for k, v in raw_history.items():
-                convo_history[int(k)] = deque(v, maxlen=10)
+                try:
+                    # Try to parse as int, fallback to string if not possible
+                    key = int(k)
+                except ValueError:
+                    key = k
+                convo_history[key] = deque(v, maxlen=10)
             return convo_history
     return defaultdict(lambda: deque(maxlen=10))
 
