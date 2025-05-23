@@ -291,10 +291,19 @@ def get_persona_openers():
     return ["Hello! I'm Yumi Sugoi."]
 
 def yumi_sugoi_response(text: str, allow_opener: bool = True) -> str:
+    from .llm import generate_llm_response  # moved import here to avoid circular import
     # Remove any leading 'Yumi:' or bot name prefix if present
     text = re.sub(r"^\s*(Yumi\s*[:：-]\s*|Yumi Sugoi\s*[:：-]\s*)", "", text, flags=re.IGNORECASE)
     openers = get_persona_openers()
     mode = _current_mode
+    # Try LLM first
+    try:
+        llm_reply = generate_llm_response(text)
+        if llm_reply and llm_reply.strip() and llm_reply.strip().lower() != text.strip().lower():
+            return llm_reply
+    except Exception as e:
+        print(f"[Yumi LLM Error] {e}")
+    # Fallback: persona-style emoji/echo logic
     if allow_opener and random.random() < 0.2:
         return f"{random.choice(openers)}\n{text}"
     if random.random() < 0.5:

@@ -1,5 +1,24 @@
 # Yumi Sugoi Changelog
 
+## [Unreleased] - 2025-05-23
+### Added
+- Admin-only `!yumi_reload` command for hot-reloading bot modules and persistent data without restart.
+- Advanced persona system: custom personas, channel personas, and persona switching.
+- Scheduled announcements and reminders with persistent storage.
+- Long-term user memory (facts/preferences).
+- XP/leveling system with per-message XP and level command.
+- Fun/utility commands: polls, suggestion box, meme generator.
+- Placeholders for AI art and TTS/voice features.
+- Advanced moderation: auto-moderation and logging (message deletes, member joins).
+- Web dashboard groundwork (Flask API for personas and XP).
+
+### Changed
+- Improved persistent storage for all new features.
+- Updated help and documentation commands to reflect new features.
+
+### Fixed
+- Conversation history and persistent lockdown bugfixes.
+
 ## [v1.2.2] - 2025-05-23
 ### Fixed
 - Fixed a crash on startup when loading conversation history with new per-user/channel context keys (mixed int and string keys).

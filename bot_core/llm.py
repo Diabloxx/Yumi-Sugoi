@@ -17,6 +17,8 @@ if not OPENAI_API_KEY:
 openai.api_key = OPENAI_API_KEY
 
 def generate_llm_response(user_message, qa_pairs=None, history=None):
+    if qa_pairs is None:
+        qa_pairs = {}
     system_prompt = get_persona_prompt()
     context = ""
     if qa_pairs:

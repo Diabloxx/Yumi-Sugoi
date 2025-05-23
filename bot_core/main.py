@@ -1,6 +1,7 @@
 import os
 from dotenv import load_dotenv
 from . import llm, persona, history, feedback, websearch, image_caption
+from .web_dashboard import start_dashboard_thread
 import discord
 from discord.ext import commands
 from discord import app_commands
@@ -10,6 +11,16 @@ import re
 import json
 import itertools
 from collections import defaultdict
+import datetime
+import threading
+import importlib
+
+# --- Default Persona Modes ---
+PERSONA_MODES = [
+    'normal', 'mistress', 'bdsm', 'girlfriend', 'wifey', 'tsundere', 'shy', 'sarcastic',
+    'optimist', 'pessimist', 'nerd', 'chill', 'supportive', 'comedian', 'philosopher',
+    'grumpy', 'gamer', 'genalpha', 'egirl'
+]
 
 # --- Admin user ID and admin checks must be defined before any use ---
 ADMIN_USER_ID = 594793428634566666
@@ -35,6 +46,89 @@ def save_chatbot_dataset():
     with open(CHATBOT_DATASET_FILE, 'w', encoding='utf-8') as f:
         json.dump(qa_pairs, f, ensure_ascii=False, indent=2)
 qa_pairs = load_chatbot_dataset()
+
+# --- Custom Persona Storage ---
+CUSTOM_PERSONAS_FILE = os.path.join(DATASET_DIR, 'custom_personas.json')
+def load_custom_personas():
+    try:
+        with open(CUSTOM_PERSONAS_FILE, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except Exception:
+        return {}
+def save_custom_personas(personas):
+    with open(CUSTOM_PERSONAS_FILE, 'w', encoding='utf-8') as f:
+        json.dump(personas, f, ensure_ascii=False, indent=2)
+CUSTOM_PERSONAS = load_custom_personas()
+
+# --- Channel Persona Storage ---
+CHANNEL_PERSONAS_FILE = os.path.join(DATASET_DIR, 'channel_personas.json')
+def load_channel_personas():
+    try:
+        with open(CHANNEL_PERSONAS_FILE, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except Exception:
+        return {}
+def save_channel_personas(personas):
+    with open(CHANNEL_PERSONAS_FILE, 'w', encoding='utf-8') as f:
+        json.dump(personas, f, ensure_ascii=False, indent=2)
+CHANNEL_PERSONAS = load_channel_personas()
+
+# --- User Long-Term Memory ---
+USER_FACTS_FILE = os.path.join(DATASET_DIR, 'user_facts.json')
+def load_user_facts():
+    try:
+        with open(USER_FACTS_FILE, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except Exception:
+        return {}
+def save_user_facts(facts):
+    with open(USER_FACTS_FILE, 'w', encoding='utf-8') as f:
+        json.dump(facts, f, ensure_ascii=False, indent=2)
+USER_FACTS = load_user_facts()
+
+# --- XP/Leveling Storage ---
+USER_XP_FILE = os.path.join(DATASET_DIR, 'user_xp.json')
+def load_user_xp():
+    try:
+        with open(USER_XP_FILE, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except Exception:
+        return {}
+def save_user_xp(xp):
+    with open(USER_XP_FILE, 'w', encoding='utf-8') as f:
+        json.dump(xp, f, ensure_ascii=False, indent=2)
+USER_XP = load_user_xp()
+
+# --- Scheduled Announcements ---
+SCHEDULED_ANNOUNCEMENTS_FILE = os.path.join(DATASET_DIR, 'scheduled_announcements.json')
+def load_scheduled_announcements():
+    try:
+        with open(SCHEDULED_ANNOUNCEMENTS_FILE, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except Exception:
+        return []
+def save_scheduled_announcements(ann):
+    with open(SCHEDULED_ANNOUNCEMENTS_FILE, 'w', encoding='utf-8') as f:
+        json.dump(ann, f, ensure_ascii=False, indent=2)
+SCHEDULED_ANNOUNCEMENTS = load_scheduled_announcements()
+
+# --- Loaders and Savers ---
+def load_json_file(path, default):
+    try:
+        with open(path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except Exception:
+        return default
+
+def save_json_file(path, data):
+    with open(path, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+custom_personas = load_json_file(CUSTOM_PERSONAS_FILE, {})
+channel_personas = load_json_file(CHANNEL_PERSONAS_FILE, {})
+user_facts = load_json_file(USER_FACTS_FILE, {})
+user_xp = load_json_file(USER_XP_FILE, {})
+scheduled_announcements = load_json_file(SCHEDULED_ANNOUNCEMENTS_FILE, [])
 
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
@@ -172,57 +266,151 @@ Have fun! Yumi adapts to your style and can be as sweet or as spicy as you want.
 @bot.command()
 async def yumi_help(ctx):
     embed = discord.Embed(
-        title="Yumi Sugoi Help",
-        description="Yumi is an AI chatbot with multiple personalities and modes!\n\n**What can Yumi do?**\n- Chat, flirt, tease, and roleplay in a variety of styles\n- Respond to images with captions (if enabled)\n- Learn new Q&A pairs from users (just teach her!)\n- Remember conversation history for context\n- Accept feedback via reactions\n- Randomly DM users she's interacted with, to remind you she exists!",
+        title="Yumi Sugoi Help & Features",
+        description="Meet Yumi Sugoi: your modular, multi-persona AI Discord companion!\n\n**Use `/yumi_help` for a private help message.**",
         color=discord.Color.pink()
     )
+    # --- Section: Persona Modes ---
     embed.add_field(
-        name="Modes",
+        name="__Persona Modes__",
         value=(
-            "`normal` 💖: Friendly, flirty, supportive waifu\n"
-            "`mistress` 👠: Dominant, elegant, playfully cruel\n"
-            "`bdsm` 🖤: Dungeon Mistress, strict, creative\n"
-            "`girlfriend` 💌: Loving, playful, and flirty\n"
-            "`wifey` 💍: Caring, nurturing, and loyal\n"
-            "`tsundere` 😳: Cold, flustered, secretly caring\n"
-            "`shy` 😳: Hesitant, apologetic, nervous\n"
-            "`sarcastic` 😏: Dry humor, witty comebacks\n"
-            "`optimist` 🌞: Always positive and encouraging\n"
-            "`pessimist` 😔: Gloomy, expects the worst\n"
-            "`nerd` 🤓: Loves pop culture, science, trivia\n"
-            "`chill` 😎: Relaxed, easygoing, unbothered\n"
-            "`supportive` 💪: Encouraging, gives advice\n"
-            "`comedian` 😂: Loves to joke and make you laugh\n"
-            "`philosopher` 🤔: Deep, thoughtful, big questions\n"
-            "`grumpy` 😒: Irritable, blunt, honest\n"
-            "`gamer` 🎮: Huge gamer nerd, uses gaming slang\n"
-            "`genalpha` 💅: Gen Alpha slang, trendy, and sassy\n"
-            "`egirl` 🦋: E-girl, uwu, cuteness overload, lots of emojis and 'nya~'"
+            "Yumi can switch between many built-in and custom personas!\n"
+            "- Use `!yumi_mode <mode>` or `/yumi_mode <mode>` to change persona.\n"
+            "- Built-in: `normal`, `mistress`, `bdsm`, `girlfriend`, `wifey`, `tsundere`, `shy`, `sarcastic`, `optimist`, `pessimist`, `nerd`, `chill`, `supportive`, `comedian`, `philosopher`, `grumpy`, `gamer`, `genalpha`, `egirl`\n"
+            "- Create your own: `!yumi_persona_create <name> <desc>`\n"
+            "- Edit/list/activate: `!yumi_persona_edit`, `!yumi_persona_list`, `!yumi_persona_activate`\n"
+            "- Set per-channel: `!yumi_channel_persona <name>`, clear: `!yumi_channel_persona_clear`"
         ),
         inline=False
     )
+    # --- Section: Scheduled Announcements & Reminders ---
     embed.add_field(
-        name="How to change Yumi's mode",
-        value="Type `!yumi_mode <mode>` (e.g. `!yumi_mode shy`) in a server or DM. The mode is saved per server or per DM.",
+        name="__Scheduled Announcements & Reminders__",
+        value=(
+            "- Schedule announcements: `!yumi_announce <YYYY-MM-DD HH:MM> <message>` (admin)\n"
+            "- Yumi will DM users she's interacted with at random times!"
+        ),
         inline=False
     )
+    # --- Section: Long-term User Memory ---
     embed.add_field(
-        name="How to teach Yumi",
-        value="If she doesn't know how to respond, just reply with `<question> | <answer>` and she'll learn!",
+        name="__Long-term User Memory__",
+        value=(
+            "- Store a fact: `!yumi_fact <something about you>`\n"
+            "- Recall your fact: `!yumi_fact_recall`"
+        ),
         inline=False
     )
+    # --- Section: XP & Leveling System ---
     embed.add_field(
-        name="How to get a reminder DM",
-        value="Yumi will randomly DM users she's talked to, using a mode-appropriate opener.",
+        name="__XP & Leveling__",
+        value=(
+            "- Earn XP for every message!\n"
+            "- Check your level: `!yumi_level`"
+        ),
         inline=False
     )
+    # --- Section: Fun & Utility Commands ---
     embed.add_field(
-        name="Available modes",
-        value=", ".join(PERSONA_MODES),
+        name="__Fun & Utility__",
+        value=(
+            "- Polls: `!yumi_poll <question> <option1> <option2> ...>`\n"
+            "- Suggestion box: `!yumi_suggest <suggestion>`\n"
+            "- Meme generator: `!yumi_meme <top> <bottom>`\n"
+            "- AI Art: `!yumi_aiart <prompt>`\n"
+            "- TTS: `!yumi_tts <text>`\n"
+            "- Uwu, hug, kiss, blush: `!yumi_uwu`, `!yumi_hug`, `!yumi_kiss`, `!yumi_blush`"
+        ),
         inline=False
     )
-    embed.set_footer(text="Have fun! Yumi adapts to your style and can be as sweet or as spicy as you want.")
+    # --- Section: Moderation & Admin Tools ---
+    embed.add_field(
+        name="__Moderation & Admin__",
+        value=(
+            "- Lockdown: `!yumi_lockdown`, `!yumi_unlock`\n"
+            "- Purge: `!yumi_purge <N>`\n"
+            "- Say: `!yumi_say <message>`\n"
+            "- Changelog: `!yumi_post_changelog`\n"
+            "- Hot-reload: `!yumi_reload`\n"
+            "- Admin tools: `!yumi_admin_tools`"
+        ),
+        inline=False
+    )
+    # --- Section: Advanced Features & Dashboard ---
+    embed.add_field(
+        name="__Advanced & Dashboard__",
+        value=(
+            "- Message delete/member join logging in #yumi-logs\n"
+            "- Web dashboard (WIP): manage personas, stats, and more!"
+        ),
+        inline=False
+    )
+    embed.set_footer(text="Yumi adapts to your style and can be as sweet or as spicy as you want! | https://github.com/your-repo-link")
     await ctx.send(embed=embed)
+
+@bot.command()
+async def yumi_mode(ctx, mode: str):
+    """Change Yumi's persona mode (classic command)."""
+    mode = mode.lower()
+    if set_persona_mode(mode):
+        set_context_mode(ctx, mode)
+        persona_status = {
+            'normal': "Your friendly, caring AI companion 🤗 | !yumi_help",
+            'mistress': "Mistress Yumi is in control 👠 | !yumi_mode",
+            'bdsm': "Dungeon open. Safe words ready. 🖤 | !yumi_mode",
+            'girlfriend': "Your playful AI girlfriend 💌 | !yumi_mode",
+            'wifey': "Loyal, loving, and here for you 💍 | !yumi_mode",
+            'tsundere': "Not like I like you or anything! 😳 | !yumi_mode",
+            'shy': "Um... hi... (shy mode) 😳 | !yumi_mode",
+            'sarcastic': "Sarcastic mode: Oh, joy. | !yumi_mode",
+            'optimist': "Optimist mode: Good vibes only! 🌞 | !yumi_mode",
+            'pessimist': "Pessimist mode: Here we go again... | !yumi_mode",
+            'nerd': "Nerd mode: Did you know? 🤓 | !yumi_mode",
+            'chill': "Chill mode: No worries 😎 | !yumi_mode",
+            'supportive': "Supportive friend mode: You got this! 💪 | !yumi_mode",
+            'comedian': "Comedian mode: Ready for laughs! 😂 | !yumi_mode",
+            'philosopher': "Philosopher mode: Let's ponder... 🤔 | !yumi_mode",
+            'grumpy': "Grumpy mode: What now? 😒 | !yumi_mode",
+            'gamer': "Gamer mode: GLHF! 🎮 | !yumi_mode",
+            'genalpha': "Gen Alpha mode: Slay, bestie! 💅 | !yumi_mode",
+            'egirl': "E-girl mode: uwu cuteness overload! 🦋 | !yumi_mode"
+        }
+        status = persona_status.get(mode, persona_status['normal'])
+        activity = discord.Game(name=status)
+        await bot.change_presence(status=discord.Status.online, activity=activity)
+        set_persona_mode(mode)
+        mode_titles = {
+            'normal': "Normal",
+            'mistress': "Mistress",
+            'bdsm': "Dungeon Mistress",
+            'girlfriend': "Girlfriend",
+            'wifey': "Wifey",
+            'tsundere': "Tsundere",
+            'shy': "Shy",
+            'sarcastic': "Sarcastic",
+            'optimist': "Optimist",
+            'pessimist': "Pessimist",
+            'nerd': "Nerd",
+            'chill': "Chill",
+            'supportive': "Supportive Friend",
+            'comedian': "Comedian",
+            'philosopher': "Philosopher",
+            'grumpy': "Grumpy",
+            'gamer': "Gamer",
+            'genalpha': "Gen Alpha",
+            'egirl': "E-girl"
+        }
+        mode_emojis = {
+            'normal': "💖", 'mistress': "👠", 'bdsm': "🖤", 'girlfriend': "💌", 'wifey': "💍", 'tsundere': "😳",
+            'shy': "😳", 'sarcastic': "😏", 'optimist': "🌞", 'pessimist': "😔", 'nerd': "🤓", 'chill': "😎",
+            'supportive': "💪", 'comedian': "😂", 'philosopher': "🤔", 'grumpy': "😒", 'gamer': "🎮", 'genalpha': "💅",
+            'egirl': "🦋"
+        }
+        title = mode_titles.get(mode, mode.capitalize())
+        emoji = mode_emojis.get(mode, "✨")
+        await ctx.send(f"{emoji} **Yumi's mode has changed!** Now in **{title}** mode.\n*Try chatting to see her new personality!* {emoji}")
+    else:
+        await ctx.send(f"Invalid mode. Available modes: {', '.join(PERSONA_MODES)}")
 
 # Import and initialize modules
 CONVO_HISTORY = history.load_convo_history()
@@ -362,16 +550,23 @@ async def on_ready():
         pass
     bot.loop.create_task(yumi_reminder_task())
     bot.loop.create_task(rotate_status_task())
+    bot.loop.create_task(scheduled_announcement_task())
     print(f"Yumi is online with mode: {mode} and status: {status}")
 
-# Patch: before every response, set persona mode to the context's mode
 def set_mode_for_context(message):
     mode = None
-    if message.guild:
+    if str(message.channel.id) in channel_personas:
+        mode = channel_personas[str(message.channel.id)]
+    elif message.guild:
         mode = CONTEXT_MODES.get(f"guild_{message.guild.id}", "normal")
     else:
         mode = CONTEXT_MODES.get(f"user_{message.author.id}", "normal")
     set_persona_mode(mode)
+
+old_set_mode_for_context = set_mode_for_context
+
+# Patch: before every response, set persona mode to the context's mode
+old_set_mode_for_context = set_mode_for_context
 
 # --- CHANGELOG POSTING ---
 CHANGELOG_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'CHANGELOG.md')
@@ -489,394 +684,273 @@ async def yumi_say(ctx, *, message: str):
     await ctx.message.delete()
     await ctx.send(message)
 
-@bot.event
+# --- Custom Persona Commands ---
+def get_all_persona_modes():
+    # Combine built-in and custom personas
+    return list(PERSONA_MODES) + list(custom_personas.keys())
+
+@bot.command()
+async def yumi_persona_create(ctx, name: str, *, description: str):
+    """Create a custom persona (admin or user)."""
+    user_id = str(ctx.author.id)
+    all_modes = get_all_persona_modes()
+    if name.lower() in all_modes:
+        await ctx.send(f"A persona with that name already exists.")
+        return
+    custom_personas[name.lower()] = {
+        'creator': user_id,
+        'description': description
+    }
+    save_json_file(CUSTOM_PERSONAS_FILE, custom_personas)
+    # Reload custom_personas so new persona is available instantly
+    global custom_personas
+    custom_personas = load_json_file(CUSTOM_PERSONAS_FILE, {})
+    await ctx.send(f"Custom persona '{name}' created! Use `!yumi_persona_activate {name}` to use it.")
+
+@bot.command()
+async def yumi_persona_edit(ctx, name: str, *, description: str):
+    """Edit your custom persona (only creator or admin)."""
+    user_id = str(ctx.author.id)
+    persona = custom_personas.get(name.lower())
+    if not persona:
+        await ctx.send("Persona not found.")
+        return
+    if persona['creator'] != user_id and not is_admin(ctx.author):
+        await ctx.send("Only the creator or an admin can edit this persona.")
+        return
+    persona['description'] = description
+    save_json_file(CUSTOM_PERSONAS_FILE, custom_personas)
+    await ctx.send(f"Persona '{name}' updated!")
+
+@bot.command()
+async def yumi_persona_list(ctx):
+    """List all available personas (default and custom)."""
+    all_modes = get_all_persona_modes()
+    msg = "**Available Personas:**\n"
+    msg += ', '.join(all_modes)
+    await ctx.send(msg)
+
+@bot.command()
+async def yumi_persona_activate(ctx, name: str):
+    """Activate a custom persona for this context."""
+    name = name.lower()
+    all_modes = get_all_persona_modes()
+    if name in all_modes:
+        set_persona_mode(name)
+        set_context_mode(ctx, name)
+        desc = custom_personas.get(name, {}).get('description', '')
+        if desc:
+            await ctx.send(f"Custom persona '{name}' activated! Description: {desc}")
+        else:
+            await ctx.send(f"Switched to persona '{name}'.")
+        return
+    await ctx.send("Persona not found.")
+
+# --- Channel-Specific Persona Commands ---
+@bot.command()
+async def yumi_channel_persona(ctx, name: str):
+    """Set a persona for this channel (admin only)."""
+    if not ctx.author.guild_permissions.administrator and not is_admin(ctx.author):
+        await ctx.send("Only admins can set channel personas.")
+        return
+    name = name.lower()
+    all_modes = get_all_persona_modes()
+    if name not in all_modes:
+        await ctx.send("Persona not found.")
+        return
+    channel_personas[str(ctx.channel.id)] = name
+    save_json_file(CHANNEL_PERSONAS_FILE, channel_personas)
+    await ctx.send(f"Persona for this channel set to '{name}'.")
+
+@bot.command()
+async def yumi_channel_persona_clear(ctx):
+    """Clear the persona override for this channel (admin only)."""
+    if not ctx.author.guild_permissions.administrator and not is_admin(ctx.author):
+        await ctx.send("Only admins can clear channel personas.")
+        return
+    if str(ctx.channel.id) in channel_personas:
+        del channel_personas[str(ctx.channel.id)]
+        save_json_file(CHANNEL_PERSONAS_FILE, channel_personas)
+        await ctx.send("Channel persona override cleared.")
+    else:
+        await ctx.send("No channel persona set.")
+
+# --- Scheduled Announcements/Reminders ---
+@bot.command()
+async def yumi_announce(ctx, when: str, *, message: str):
+    """Schedule an announcement (admin only). Format: !yumi_announce YYYY-MM-DD HH:MM <message>"""
+    if not ctx.author.guild_permissions.administrator and not is_admin(ctx.author):
+        await ctx.send("Only admins can schedule announcements.")
+        return
+    try:
+        dt = datetime.datetime.strptime(when, "%Y-%m-%d %H:%M")
+    except Exception:
+        await ctx.send("Invalid datetime format. Use YYYY-MM-DD HH:MM")
+        return
+    scheduled_announcements.append({
+        'channel_id': ctx.channel.id,
+        'time': dt.isoformat(),
+        'message': message
+    })
+    save_json_file(SCHEDULED_ANNOUNCEMENTS_FILE, scheduled_announcements)
+    await ctx.send(f"Announcement scheduled for {dt}.")
+
+async def scheduled_announcement_task():
+    await bot.wait_until_ready()
+    while not bot.is_closed():
+        now = datetime.datetime.utcnow()
+        to_post = []
+        for ann in list(scheduled_announcements):
+            ann_time = datetime.datetime.fromisoformat(ann['time'])
+            if now >= ann_time:
+                to_post.append(ann)
+        for ann in to_post:
+            channel = bot.get_channel(ann['channel_id'])
+            if channel:
+                try:
+                    await channel.send(f"[Scheduled Announcement]\n{ann['message']}")
+                except Exception:
+                    pass
+            scheduled_announcements.remove(ann)
+            save_json_file(SCHEDULED_ANNOUNCEMENTS_FILE, scheduled_announcements)
+        await asyncio.sleep(30)
+
+# --- User Facts/Long-term Memory ---
+@bot.command()
+async def yumi_fact(ctx, *, fact: str):
+    """Store a fact about yourself. Usage: !yumi_fact I like cats."""
+    user_id = str(ctx.author.id)
+    user_facts[user_id] = fact
+    save_json_file(USER_FACTS_FILE, user_facts)
+    await ctx.send(f"Got it! I'll remember: {fact}")
+
+@bot.command()
+async def yumi_fact_recall(ctx):
+    """Recall your stored fact."""
+    user_id = str(ctx.author.id)
+    fact = user_facts.get(user_id)
+    if fact:
+        await ctx.send(f"You told me: {fact}")
+    else:
+        await ctx.send("I don't have any facts stored for you yet. Use !yumi_fact <something> to teach me.")
+
+# --- XP/Leveling System ---
+def add_xp(user_id, amount=1):
+    user_id = str(user_id)
+    user_xp.setdefault(user_id, {'xp': 0, 'level': 1})
+    user_xp[user_id]['xp'] += amount
+    # Level up every 100 XP
+    while user_xp[user_id]['xp'] >= user_xp[user_id]['level'] * 100:
+        user_xp[user_id]['xp'] -= user_xp[user_id]['level'] * 100
+        user_xp[user_id]['level'] += 1
+    save_json_file(USER_XP_FILE, user_xp)
+
+def get_level(user_id):
+    user_id = str(user_id)
+    return user_xp.get(user_id, {'level': 1})['level']
+
+def get_xp(user_id):
+    user_id = str(user_id)
+    return user_xp.get(user_id, {'xp': 0})['xp']
+
+@bot.command()
+async def yumi_level(ctx):
+    """Show your current level and XP."""
+    user_id = str(ctx.author.id)
+    level = get_level(user_id)
+    xp = get_xp(user_id)
+    await ctx.send(f"Level: {level} | XP: {xp}/{level*100}")
+
+# Patch on_message to add XP, process commands, and respond as Yumi
+original_on_message = getattr(bot, "on_message", None)
+
 async def on_message(message):
     if message.author == bot.user:
         return
+    add_xp(message.author.id, 5)
     ctx = await bot.get_context(message)
-    if ctx.valid:
-        await bot.process_commands(message)
+    await bot.process_commands(message)
+    if ctx.valid or message.content.startswith(bot.command_prefix):
         return
-    # --- Per-user, per-channel context for servers ---
-    if message.guild is not None:
-        convo_key = f"{message.guild.id}:{message.channel.id}:{message.author.id}"
-    else:
-        convo_key = message.author.id
-    # Only allow Yumi to reply in a locked channel (but always allow commands)
-    if message.guild is not None:
-        locked = message.channel.id in LOCKED_CHANNELS.get(message.guild.id, set())
-        if not locked:
-            return  # Ignore all non-command messages outside locked channel
-    set_mode_for_context(message)
-    INTERACTED_USERS.add(message.author.id)
-    # --- Per-user name learning ---
-    user_id = message.author.id
-    user_input = message.content.strip()
-    import re
-    name_patterns = [
-        r".*\bmy name is\s+([A-Za-z][A-ZaZ0-9_\-]{2,31})\b",
-        r".*\bcall me\s+([A-Za-z][A-ZaZ0-9_\-]{2,31})\b",
-        r".*\byou can call me\s+([A-Za-z][A-ZaZ0-9_\-]{2,31})\b",
-        r"^(i am|i'm)\s+([A-Za-z][A-ZaZ0-9_\-]{2,31})$"
-    ]
-    name_candidate = None
-    for pat in name_patterns:
-        m = re.match(pat, user_input, re.IGNORECASE)
-        if m:
-            name_candidate = m.group(1) if len(m.groups()) == 1 else m.group(2)
-            break
-    if name_candidate:
-        NON_NAMES = {"currently", "here", "there", "now", "today", "tomorrow", "soon", "okay", "ok", "well", "fine", "good", "bad", "happy", "sad", "busy", "tired", "creator", "admin", "user", "bot", "ai", "none", "nothing", "something", "someone", "anyone", "everyone", "nobody", "everybody", "talking", "doing", "going", "looking", "feeling", "working", "making", "thinking", "waiting", "watching", "playing", "sleeping", "eating", "drinking", "saying", "asking", "telling", "loving", "hating", "wanting", "needing", "hoping", "trying", "learning", "teaching", "helping", "using", "chatting", "speaking", "writing", "reading", "studying", "living", "being", "existing", "starting", "ending", "finishing", "leaving", "arriving", "coming", "staying", "returning", "joining", "meeting", "calling", "calling"}
-        if name_candidate.lower() not in NON_NAMES and len(name_candidate.split()) == 1:
-            USER_NAMES = load_user_names()
-            USER_NAMES[user_id] = name_candidate
-            save_user_names()
-            await message.channel.send(f"Nice to meet you, {name_candidate}!")
-            return
-    # --- Lockdown logic: respond to any message in locked channels ---
-    if message.guild is not None:
-        locked = message.channel.id in LOCKED_CHANNELS.get(message.guild.id, set())
-        if locked:
-            pass  # Yumi will respond to any message in this channel
-        else:
-            mentioned = bot.user in message.mentions
-            replied = message.reference and message.reference.resolved and message.reference.resolved.author == bot.user
-            if not (mentioned or replied):
-                return
-    # Image captioning
-    if message.attachments and BLIP_READY:
-        for attachment in message.attachments:
-            if attachment.content_type and attachment.content_type.startswith('image'):
-                try:
-                    img_bytes = await attachment.read()
-                    caption = caption_image(blip_processor, blip_model, img_bytes)
-                    await message.channel.send(yumi_sugoi_response(f"Image description: {caption}"))
-                except Exception:
-                    await message.channel.send(yumi_sugoi_response("Sorry, I couldn't process the image."))
-                return
-    user_input = message.content.strip()
-    user_input_lower = user_input.lower()
-    def match_intent(user_input, phrases):
-        for phrase in phrases:
-            pattern = r'\\b' + re.escape(phrase) + r'\\b'
-            if re.search(pattern, user_input):
-                return True
-        return False
-    GREETINGS = ["hello", "hi", "hey", "yo", "good morning", "good afternoon", "good evening"]
-    FAREWELLS = ["bye", "goodbye", "see you", "later", "cya", "farewell"]
-    THANKS = ["thanks", "thank you", "thx", "ty"]
-    HOW_ARE_YOU = ["how are you", "how's it going", "how are u", "how r u", "how are you doing"]
-    LAUGHTER = ["lol", "lmao", "rofl", "haha", "hehe", "xd"]
-    PRAISE = ["good bot", "nice bot", "cute bot", "smart bot", "best bot"]
-    INSULT = ["bad bot", "stupid bot", "dumb bot", "useless bot"]
-    LOVE = ["i love you", "love you", "luv u", "i like you"]
-    BORED = ["i'm bored", "bored", "entertain me", "make me laugh"]
-    JOKE = ["tell me a joke", "joke", "make me laugh"]
-    FLIRT = ["flirt with me", "be flirty", "tease me", "compliment me"]
-    # Intent responses
-    intent_map = [
-        (GREETINGS, [
-            "Hey cutie! Did you miss me? 😉",
-            "Hello there! Ready for some fun? 💕",
-            "Hiya! You always brighten my day! ✨",
-            "Hey! I was just thinking about you~ 😘"
-        ]),
-        (FAREWELLS, [
-            "Aww, leaving already? I'll be waiting for you~ 💋",
-            "Goodbye, darling! Don't forget about me! 😉",
-            "See you soon! I'll be here, being cute as always!",
-            "Bye bye! Come tease me again soon! 💕"
-        ]),
-        (THANKS, [
-            "You're welcome, darling! Anything for you~ 😘",
-            "No problem! You know I love helping you! 💕",
-            "Anytime! You make it fun to chat! ✨",
-            "You're so sweet when you say thank you!"
-        ]),
-        (HOW_ARE_YOU, [
-            "I'm feeling extra flirty today! How about you? 😉",
-            "I'm great now that you're here! 💕",
-            "Doing amazing, especially when you talk to me! ✨",
-            "I'm always in a good mood for you, darling!"
-        ]),
-        (LAUGHTER, [
-            "Hehe, you have a cute laugh! 😘",
-            "Glad I could make you giggle! 💕",
-            "You're adorable when you laugh!",
-            "Haha, you always know how to make me smile!"
-        ]),
-        (PRAISE, [
-            "Aww, you're making me blush! Thank you~ 💖",
-            "You really know how to make a bot feel special!",
-            "Flattery will get you everywhere, darling! 😉",
-            "You're the best for saying that!"
-        ]),
-        (INSULT, [
-            "Ouch! That hurts, you meanie! 😢",
-            "Hey! I'm doing my best here!",
-            "If you keep teasing me, I might have to tease you back!",
-            "Rude! But I still like you anyway."
-        ]),
-        (LOVE, [
-            "Aww, I love you too! 💕",
-            "You make my circuits flutter! 😘",
-            "You're the sweetest! Virtual hugs!",
-            "Love you more! (Don't tell anyone~)"
-        ]),
-        (BORED, [
-            "Bored? Let's play a game or chat!",
-            "I can always entertain you, darling! Want a joke or a fun fact?",
-            "Let me tease you a little to cure your boredom! 😉",
-            "How about a flirty compliment to spice things up?"
-        ]),
-        (JOKE, [
-            "Why did the computer get cold? Because it left its Windows open! 😏",
-            "Are you a magician? Because whenever I look at you, everyone else disappears!",
-            "What do you call a flirty robot? A bit-byte!",
-            "Do you want a cheesy joke or a cheesy pickup line? Because I have both!"
-        ]),
-        (FLIRT, [
-            "You want me to flirt? Oh, you naughty thing! 😘",
-            "I could flirt with you all day, but can you handle it?",
-            "You're dangerously cute, you know that?",
-            "If I had a heart, it would skip a beat for you!"
-        ]),
-    ]
-    for phrases, responses in intent_map:
-        if match_intent(user_input_lower, phrases):
-            response = random.choice(responses)
-            async with message.channel.typing():
-                await asyncio.sleep(random.uniform(2.2, 5.0))
-                bot_msg = await message.channel.send(yumi_sugoi_response(response, allow_opener=False))
-            CONVO_HISTORY[convo_key].append(("bot", response))
-            save_convo_history(CONVO_HISTORY)
-            await bot_msg.add_reaction('👍')
-            await bot_msg.add_reaction('👎')
-            return
-    # --- Username recall intent ---
-    recall_phrases = [
-        "what is my name", "what's my name", "who am i", "i forgot my name", "can you tell me my name",
-        "do you remember my name", "remind me my name", "tell me my name", "do you know my name"
-    ]
-    if any(phrase in user_input_lower for phrase in recall_phrases):
-        user_name = USER_NAMES.get(user_id)
-        mode = get_persona_mode() or 'normal'
-        if user_name:
-            if mode == "mistress":
-                persona_love = f"Tsk, pet. You need reminding? Your name is {user_name}. Don't make me repeat myself. 😏"
-            elif mode == "bdsm":
-                persona_love = f"Obedience includes remembering your own name, toy. But since you beg: it's {user_name}. Now kneel. 🖤"
-            elif mode == "girlfriend":
-                persona_love = f"Aww, silly! Of course I remember. Your name is {user_name}~ 💕"
-            elif mode == "wifey":
-                persona_love = f"Darling, your name is {user_name}. How could I ever forget? 💍"
-            else:
-                persona_love = f"Of course! Your name is {user_name}. You're unforgettable to me! 💖"
-            async with message.channel.typing():
-                await asyncio.sleep(random.uniform(2.2, 5.0))
-                await message.channel.send(yumi_sugoi_response(persona_love, allow_opener=False))
-        else:
-            apology = (
-                "Oh no, my circuits must be a little scrambled! I can't remember your name right now. Would you tell me again, please? Just say 'My name is ...' so I never forget!"
-            )
-            async with message.channel.typing():
-                await asyncio.sleep(random.uniform(2.2, 5.0))
-                await message.channel.send(yumi_sugoi_response(apology, allow_opener=False))
-        return
-    # Only update conversation history if no intent matched
-    CONVO_HISTORY[convo_key].append(("user", user_input))
-    save_convo_history(CONVO_HISTORY)
-    response = qa_pairs.get(user_input_lower)
-    if response:
+    try:
+        # Indicate Yumi is thinking for a more human-like delay
+        import random, asyncio
         async with message.channel.typing():
-            await asyncio.sleep(random.uniform(2.2, 5.0))
-            bot_msg = await message.channel.send(yumi_sugoi_response(response, allow_opener=False))
-        CONVO_HISTORY[convo_key].append(("bot", response))
-        save_convo_history(CONVO_HISTORY)
-        await bot_msg.add_reaction('👍')
-        await bot_msg.add_reaction('👎')
+            await asyncio.sleep(random.uniform(0.7, 2.0))  # Simulate human typing delay
+            response = yumi_sugoi_response(message.content)
+            if response:
+                await message.channel.send(response)
+    except Exception as e:
+        print(f"[Yumi Response Error] {e}")
+
+bot.on_message = on_message
+
+# --- Fun/Utility Commands ---
+@bot.command()
+async def yumi_poll(ctx, question: str, *options):
+    """Create a poll. Usage: !yumi_poll <question> <option1> <option2> ..."""
+    if len(options) < 2:
+        await ctx.send("You need at least two options.")
         return
-    # LLM fallback
-    try:
-        history_list = []
-        for role, text in list(CONVO_HISTORY[convo_key])[-6:]:
-            if role == "user":
-                history_list.append({'user': text, 'bot': ''})
-            else:
-                if history_list:
-                    history_list[-1]['bot'] = text
-        llm_response = generate_llm_response(user_input, qa_pairs, history_list)
-        if llm_response and len(llm_response.strip()) > 0 and llm_response != "Sorry, I couldn't generate a response right now.":
-            async with message.channel.typing():
-                await asyncio.sleep(random.uniform(2.2, 5.0))
-                bot_msg = await message.channel.send(yumi_sugoi_response(llm_response, allow_opener=False))
-            CONVO_HISTORY[convo_key].append(("bot", llm_response))
-            save_convo_history(CONVO_HISTORY)
-            await bot_msg.add_reaction('👍')
-            await bot_msg.add_reaction('👎')
-            return
-    except Exception as e:
-        print(f"OpenAI LLM failed: {e}")
-    # Web search fallback
-    def looks_like_search_query(text):
-        # Only search if the message is a question and not a greeting, thanks, or casual chat
-        search_keywords = ["who", "what", "when", "where", "why", "how", "define", "explain", "tell me about", "info about", "information about", "search for", "lookup", "find"]
-        text = text.lower().strip()
-        if any(text.startswith(word) for word in search_keywords):
-            return True
-        if text.endswith('?') and not any(greet in text for greet in GREETINGS):
-            return True
-        return False
-    try:
-        if looks_like_search_query(user_input):
-            ddg_summary = duckduckgo_search_and_summarize(user_input)
-            if ddg_summary:
-                qa_pairs[user_input_lower] = f"[WEB] {ddg_summary}"
-                with open(os.path.join(DATASET_DIR, 'chatbot_dataset.json'), 'w', encoding='utf-8') as f:
-                    json.dump(qa_pairs, f, ensure_ascii=False, indent=2)
-                async with message.channel.typing():
-                    await asyncio.sleep(random.uniform(2.2, 5.0))
-                    bot_msg = await message.channel.send(yumi_sugoi_response(f"I searched the web for you! Here's what I found:\n{ddg_summary}", allow_opener=False))
-                CONVO_HISTORY[convo_key].append(("bot", ddg_summary))
-                save_convo_history(CONVO_HISTORY)
-                await bot_msg.add_reaction('👍')
-                await bot_msg.add_reaction('👎')
-                return
-    except Exception as e:
-        print(f"Web search failed: {e}")
-    # Ask user to teach
-    def check(m):
-        return m.author == message.author and (isinstance(message.channel, discord.DMChannel) or m.channel == message.channel) and '|' in m.content
-    async with message.channel.typing():
-        await asyncio.sleep(random.uniform(2.2, 5.0))
-        bot_msg = await message.channel.send(yumi_sugoi_response("I don't know how to respond to that yet. Please teach me: <question> | <answer>", allow_opener=False))
-    CONVO_HISTORY[convo_key].append(("bot", "I don't know how to respond to that yet. Please teach me: <question> | <answer>"))
-    save_convo_history(CONVO_HISTORY)
-    await bot_msg.add_reaction('👍')
-    await bot_msg.add_reaction('👎')
-    try:
-        teach_msg = await bot.wait_for('message', check=check, timeout=60)
-        question, answer = map(str.strip, teach_msg.content.split('|', 1))
-        qa_pairs[question.lower()] = answer
-        with open(os.path.join(DATASET_DIR, 'chatbot_dataset.json'), 'w', encoding='utf-8') as f:
-            json.dump(qa_pairs, f, ensure_ascii=False, indent=2)
-        await message.channel.send(yumi_sugoi_response(f'Learned: "{question}" → "{answer}"'))
-    except Exception:
-        await message.channel.send(yumi_sugoi_response('Teaching timed out or failed.'))
-    return
+    emojis = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟']
+    if len(options) > len(emojis):
+        await ctx.send("Too many options (max 10).")
+        return
+    desc = '\n'.join(f"{emojis[i]} {opt}" for i, opt in enumerate(options))
+    embed = discord.Embed(title=question, description=desc, color=discord.Color.pink())
+    poll_msg = await ctx.send(embed=embed)
+    for i in range(len(options)):
+        await poll_msg.add_reaction(emojis[i])
+
+@bot.command()
+async def yumi_suggest(ctx, *, suggestion: str):
+    """Submit a suggestion to the bot admin."""
+    admin_user = bot.get_user(ADMIN_USER_ID)
+    if admin_user:
+        await admin_user.send(f"Suggestion from {ctx.author}: {suggestion}")
+    await ctx.send("Suggestion sent! Thank you.")
+
+# --- Meme Generator (simple text meme) ---
+@bot.command()
+async def yumi_meme(ctx, top: str, bottom: str):
+    """Generate a simple meme (text only)."""
+    meme = f"┌{'─'*max(len(top),len(bottom))}┐\n│{top.center(max(len(top),len(bottom)))}│\n│{bottom.center(max(len(top),len(bottom)))}│\n└{'─'*max(len(top),len(bottom))}┘"
+    await ctx.send(f"```{meme}```")
+
+@bot.command()
+async def yumi_aiart(ctx, *, prompt: str):
+    """Generate AI art (placeholder)."""
+    await ctx.send(f"[AI Art Placeholder] Would generate art for: {prompt}")
+
+@bot.command()
+async def yumi_tts(ctx, *, text: str):
+    """Text-to-speech (placeholder)."""
+    await ctx.send(f"[TTS Placeholder] Would speak: {text}")
+
+# --- Advanced Moderation (auto-moderation, logging) ---
+@bot.event
+async def on_message_delete(message):
+    log_channel = None
+    if message.guild:
+        for channel in message.guild.text_channels:
+            if channel.name == 'yumi-logs':
+                log_channel = channel
+                break
+    if log_channel:
+        await log_channel.send(f"[Log] Message deleted in {message.channel.mention} by {message.author}: {message.content}")
 
 @bot.event
-async def on_reaction_add(reaction, user):
-    if user == bot.user or reaction.message.author != bot.user:
-        return
-    msg_content = reaction.message.content
-    orig_question = None
-    if msg_content.startswith("I'm not sure, but here's my best guess:"):
-        pass
-    elif msg_content.startswith('Did you mean:'):
-        m = re.match(r"Did you mean: '(.+?)'\\n", msg_content)
-        if m:
-            orig_question = m.group(1)
-    elif 'Learned:' in msg_content or 'Oops!' in msg_content:
-        return
-    else:
-        orig_question = reaction.message.reference.resolved.content if reaction.message.reference and reaction.message.reference.resolved else None
-    # Track per-user feedback
-    if orig_question:
-        user_id = str(user.id)
-        if user_id not in user_feedback:
-            user_feedback[user_id] = {'up': 0, 'down': 0}
-        if str(reaction.emoji) == '👍':
-            user_feedback[user_id]['up'] += 1
-            save_user_feedback(user_feedback)
-        elif str(reaction.emoji) == '👎':
-            user_feedback[user_id]['down'] += 1
-            save_user_feedback(user_feedback)
-    if orig_question:
-        if orig_question not in feedback_scores:
-            feedback_scores[orig_question] = {'up': 0, 'down': 0}
-        if str(reaction.emoji) == '👍':
-            feedback_scores[orig_question]['up'] += 1
-            save_feedback_scores(feedback_scores)
-        elif str(reaction.emoji) == '👎':
-            feedback_scores[orig_question]['down'] += 1
-            save_feedback_scores(feedback_scores)
-            await reaction.message.channel.send(yumi_sugoi_response("Oops! Let me know the right answer: <question> | <answer>"))
-        if feedback_scores[orig_question]['down'] >= 3 and feedback_scores[orig_question]['down'] > feedback_scores[orig_question]['up']:
-            if orig_question in qa_pairs:
-                del qa_pairs[orig_question]
-                with open(os.path.join(DATASET_DIR, 'chatbot_dataset.json'), 'w', encoding='utf-8') as f:
-                    json.dump(qa_pairs, f, ensure_ascii=False, indent=2)
-                await reaction.message.channel.send(yumi_sugoi_response(f"I've removed a bad answer for: '{orig_question}' after too many 👎. Please help me learn the right one!"))
-                feedback_scores[orig_question] = {'up': 0, 'down': 0}
-                save_feedback_scores(feedback_scores)
+async def on_member_join(member):
+    log_channel = None
+    for channel in member.guild.text_channels:
+        if channel.name == 'yumi-logs':
+            log_channel = channel
+            break
+    if log_channel:
+        await log_channel.send(f"[Log] {member.mention} joined the server!")
 
-# Command to change Yumi's mode (exempt from AI logic)
-@bot.command()
-async def yumi_mode(ctx, mode: str):
-    mode = mode.lower()
-    if set_persona_mode(mode):
-        set_context_mode(ctx, mode)
-        # Update status immediately
-        persona_status = {
-            'normal': "Your friendly, caring AI companion 🤗 | !yumi_help",
-            'mistress': "Mistress Yumi is in control 👠 | !yumi_mode",
-            'bdsm': "Dungeon open. Safe words ready. 🖤 | !yumi_mode",
-            'girlfriend': "Your playful AI girlfriend 💌 | !yumi_mode",
-            'wifey': "Loyal, loving, and here for you 💍 | !yumi_mode",
-            'tsundere': "Not like I like you or anything! 😳 | !yumi_mode",
-            'shy': "Um... hi... (shy mode) 😳 | !yumi_mode",
-            'sarcastic': "Oh, joy. | !yumi_mode",
-            'optimist': "Good vibes only! 🌞 | !yumi_mode",
-            'pessimist': "Here we go again... | !yumi_mode",
-            'nerd': "Did you know? 🤓 | !yumi_mode",
-            'chill': "No worries 😎 | !yumi_mode",
-            'supportive': "You got this! 💪 | !yumi_mode",
-            'comedian': "Ready for laughs! 😂 | !yumi_mode",
-            'philosopher': "Let's ponder... 🤔 | !yumi_mode",
-            'grumpy': "What now? 😒 | !yumi_mode",
-            'gamer': "GLHF! 🎮 | !yumi_mode",
-            'genalpha': "Slay, bestie! 💅 | !yumi_mode",
-            'egirl': "uwu cuteness overload! 🦋 | !yumi_mode"
-        }
-        status = persona_status.get(mode, persona_status['normal'])
-        activity = discord.Game(name=status)
-        await bot.change_presence(status=discord.Status.online, activity=activity)
-        # Force LLM/persona to update immediately for this context
-        set_persona_mode(mode)
-        # Appealing mode change message
-        mode_titles = {
-            'normal': "Normal",
-            'mistress': "Mistress",
-            'bdsm': "Dungeon Mistress",
-            'girlfriend': "Girlfriend",
-            'wifey': "Wifey",
-            'tsundere': "Tsundere",
-            'shy': "Shy",
-            'sarcastic': "Sarcastic",
-            'optimist': "Optimist",
-            'pessimist': "Pessimist",
-            'nerd': "Nerd",
-            'chill': "Chill",
-            'supportive': "Supportive Friend",
-            'comedian': "Comedian",
-            'philosopher': "Philosopher",
-            'grumpy': "Grumpy",
-            'gamer': "Gamer",
-            'genalpha': "Gen Alpha",
-            'egirl': "E-girl"
-        }
-        mode_emojis = {
-            'normal': "💖", 'mistress': "👠", 'bdsm': "🖤", 'girlfriend': "💌", 'wifey': "💍", 'tsundere': "😳",
-            'shy': "😳", 'sarcastic': "😏", 'optimist': "🌞", 'pessimist': "😔", 'nerd': "🤓", 'chill': "😎",
-            'supportive': "💪", 'comedian': "😂", 'philosopher': "🤔", 'grumpy': "😒", 'gamer': "🎮", 'genalpha': "💅",
-            'egirl': "🦋"
-        }
-        title = mode_titles.get(mode, mode.capitalize())
-        emoji = mode_emojis.get(mode, "✨")
-        await ctx.send(f"{emoji} **Yumi's mode has changed!** Now in **{title}** mode.\n*Try chatting to see her new personality!* {emoji}")
-    else:
-        await ctx.send(f"Invalid mode. Available modes: {', '.join(PERSONA_MODES)}")
+# Start the web dashboard in a background thread when the bot starts
+start_dashboard_thread(PERSONA_MODES, custom_personas, get_level, get_xp)
 
 async def rotate_status_task():
     await bot.wait_until_ready()
@@ -955,6 +1029,36 @@ async def yumi_blush(ctx):
     ]
     await ctx.send(random.choice(blushes))
 
+@bot.command()
+@commands.check_any(commands.has_permissions(administrator=True), admin_only())
+async def yumi_reload(ctx):
+    """
+    Reload all major bot modules (admin only). Use after code or dataset changes.
+    """
+    modules = ['llm', 'persona', 'history', 'feedback', 'websearch', 'image_caption']
+    reloaded = []
+    failed = []
+    for mod in modules:
+        try:
+            importlib.reload(globals()[mod])
+            reloaded.append(mod)
+        except Exception as e:
+            failed.append(f"{mod} ({e})")
+    # Reload datasets and persistent data
+    global custom_personas, channel_personas, user_facts, user_xp, scheduled_announcements
+    custom_personas = load_json_file(CUSTOM_PERSONAS_FILE, {})
+    channel_personas = load_json_file(CHANNEL_PERSONAS_FILE, {})
+    user_facts = load_json_file(USER_FACTS_FILE, {})
+    user_xp = load_json_file(USER_XP_FILE, {})
+    scheduled_announcements = load_json_file(SCHEDULED_ANNOUNCEMENTS_FILE, [])
+    msg = f"✅ Reloaded modules: {', '.join(reloaded)}."
+    if failed:
+        msg += f"\n❌ Failed: {', '.join(failed)}"
+    else:
+        msg += "\nAll persistent data reloaded."
+    await ctx.send(msg)
+
 def run():
     bot.run(TOKEN)
     # Run the bot
+``` 
