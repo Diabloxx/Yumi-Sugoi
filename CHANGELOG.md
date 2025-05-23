@@ -1,5 +1,13 @@
 # Yumi Sugoi Changelog
 
+## [v1.2.1] - 2025-05-23
+### Added
+- Persistent lockdown: Yumi now remembers which channel(s) are locked down in each server, even after a bot restart.
+- Lockdown status is saved to `datasets/lockdown_channels.json` and restored on startup.
+
+### Fixed
+- Minor bug fixes and reliability improvements for lockdown and changelog posting.
+
 ## [v1.2.0] - 2025-05-22
 ### Added
 - Per-user, per-channel context logic: Yumi now keeps conversation context separate for each user in servers.

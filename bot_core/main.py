@@ -270,6 +270,28 @@ from .image_caption import caption_image
 # Track users Yumi has interacted with
 INTERACTED_USERS = set()
 
+# --- Persistent lockdown storage ---
+LOCKDOWN_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'datasets', 'lockdown_channels.json')
+
+def save_lockdown_channels():
+    try:
+        with open(LOCKDOWN_FILE, 'w', encoding='utf-8') as f:
+            json.dump({str(gid): list(cids) for gid, cids in LOCKED_CHANNELS.items()}, f)
+    except Exception as e:
+        print(f"[Lockdown] Failed to save: {e}")
+
+def load_lockdown_channels():
+    try:
+        with open(LOCKDOWN_FILE, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+            for gid, cids in data.items():
+                LOCKED_CHANNELS[int(gid)] = set(cids)
+    except Exception:
+        pass
+
+# Load lockdown channels on startup
+load_lockdown_channels()
+
 # --- Per-user name memory ---
 USER_NAMES_FILE = os.path.join(DATASET_DIR, 'user_names.json')
 def load_user_names():
@@ -423,6 +445,7 @@ async def yumi_lockdown(ctx):
     channel = ctx.channel
     guild = ctx.guild
     LOCKED_CHANNELS[guild.id].add(channel.id)
+    save_lockdown_channels()
     overwrite = discord.PermissionOverwrite()
     overwrite.send_messages = False
     try:
@@ -444,6 +467,7 @@ async def yumi_unlock(ctx):
     await channel.set_permissions(guild.default_role, overwrite=None)
     await ctx.send("🔓 Lockdown lifted! Everyone can talk again.")
     LOCKED_CHANNELS[guild.id].discard(channel.id)
+    save_lockdown_channels()
 
 # --- PURGE COMMAND ---
 @bot.command()
