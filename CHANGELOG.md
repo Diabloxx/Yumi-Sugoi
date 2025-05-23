@@ -2,6 +2,25 @@
 
 ## [v1.3.0] - 2025-05-23
 ### Added
+- Major web dashboard upgrade: modern UI with Bootstrap and Font Awesome.
+- **Live Chat Console:** Send messages as Yumi to any server/channel, real-time message feed.
+- **User Management:** Search users, view profiles (XP, level, facts, infractions, join date), kick/ban/unban users.
+- **Scheduled Tasks:** View, add, and delete scheduled announcements/reminders.
+- **Persona Management:** Add and delete custom personas from the dashboard.
+- **Server Controls:** Change persona mode, lockdown channels, and toggle lockdown for the official server.
+- **Moderation Logs:** Real-time log panel (placeholder, ready for real data).
+- **API Scaffolding:** Endpoints for all major dashboard features (live chat, users, scheduled tasks, analytics, moderation, audit log).
+- **UI Placeholders:** Analytics, moderation, and audit log panels for future expansion.
+
+### Changed
+- Refactored dashboard JS for modularity and extensibility.
+- Improved dashboard interactivity and responsiveness.
+
+### Notes
+- This release lays the foundation for advanced analytics, moderation, and custom command management in future updates.
+
+## [v1.2.3] - 2025-05-23
+### Added
 - Yumi now displays a typing indicator and random delay before replying, simulating human-like conversation.
 - Persona management is fully dynamic: new custom personas are available instantly after creation, and all persona commands use the latest built-in and custom personas without restart.
 - Refactored persona commands (`list`, `activate`, `channel persona`) to always use the latest persona list.
