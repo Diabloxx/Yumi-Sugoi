@@ -450,7 +450,7 @@ if 'egirl' not in PERSONA_MODES:
     PERSONA_MODES.append('egirl')
 
 from .llm import generate_llm_response
-from .history import save_convo_history
+from .history import save_convo_history, load_convo_history
 from .feedback import save_feedback_scores, save_user_feedback, save_user_feedback, reset_feedback, export_feedback, export_user_feedback, get_user_feedback_stats
 from .websearch import duckduckgo_search_and_summarize
 from .image_caption import caption_image
@@ -692,6 +692,7 @@ def get_all_persona_modes():
 @bot.command()
 async def yumi_persona_create(ctx, name: str, *, description: str):
     """Create a custom persona (admin or user)."""
+    global custom_personas
     user_id = str(ctx.author.id)
     all_modes = get_all_persona_modes()
     if name.lower() in all_modes:
@@ -703,7 +704,6 @@ async def yumi_persona_create(ctx, name: str, *, description: str):
     }
     save_json_file(CUSTOM_PERSONAS_FILE, custom_personas)
     # Reload custom_personas so new persona is available instantly
-    global custom_personas
     custom_personas = load_json_file(CUSTOM_PERSONAS_FILE, {})
     await ctx.send(f"Custom persona '{name}' created! Use `!yumi_persona_activate {name}` to use it.")
 
@@ -861,25 +861,39 @@ async def yumi_level(ctx):
     xp = get_xp(user_id)
     await ctx.send(f"Level: {level} | XP: {xp}/{level*100}")
 
-# Patch on_message to add XP, process commands, and respond as Yumi
-original_on_message = getattr(bot, "on_message", None)
+def get_history_key(message):
+    if message.guild:
+        # Per-user-in-server context
+        return f"guild_{message.guild.id}_user_{message.author.id}"
+    else:
+        # DM context
+        return f"user_{message.author.id}"
 
 async def on_message(message):
     if message.author == bot.user:
         return
+    # --- Lockdown enforcement ---
+    if message.guild and LOCKED_CHANNELS.get(message.guild.id):
+        if message.channel.id not in LOCKED_CHANNELS[message.guild.id]:
+            return  # Ignore messages in non-locked channels during lockdown
     add_xp(message.author.id, 5)
     ctx = await bot.get_context(message)
     await bot.process_commands(message)
     if ctx.valid or message.content.startswith(bot.command_prefix):
         return
     try:
-        # Indicate Yumi is thinking for a more human-like delay
         import random, asyncio
         async with message.channel.typing():
-            await asyncio.sleep(random.uniform(0.7, 2.0))  # Simulate human typing delay
-            response = yumi_sugoi_response(message.content)
+            await asyncio.sleep(random.uniform(0.7, 2.0))
+            # --- Conversation memory logic ---
+            key = get_history_key(message)
+            history_deque = CONVO_HISTORY[key]
+            history = list(history_deque)
+            response = llm.generate_llm_response(message.content, qa_pairs=qa_pairs, history=history)
             if response:
                 await message.channel.send(response)
+                history_deque.append({'user': message.content, 'bot': response})
+                save_convo_history(CONVO_HISTORY)
     except Exception as e:
         print(f"[Yumi Response Error] {e}")
 
@@ -1060,5 +1074,3 @@ async def yumi_reload(ctx):
 
 def run():
     bot.run(TOKEN)
-    # Run the bot
-``` 
