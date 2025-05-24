@@ -1,5 +1,4 @@
 import os
-from dotenv import load_dotenv
 from . import llm, persona, history, feedback, websearch, image_caption
 from .web_dashboard import start_dashboard_thread
 import discord
@@ -130,9 +129,16 @@ user_facts = load_json_file(USER_FACTS_FILE, {})
 user_xp = load_json_file(USER_XP_FILE, {})
 scheduled_announcements = load_json_file(SCHEDULED_ANNOUNCEMENTS_FILE, [])
 
-load_dotenv()
+# Get Discord token from environment variables
 TOKEN = os.getenv('DISCORD_TOKEN')
+if not TOKEN:
+    print("ERROR: No Discord token found in environment variables!")
+    print("Make sure you have a valid DISCORD_TOKEN in your .env file")
+    print("Current .env path:", os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env'))
+    # Fallback to a placeholder for testing - won't actually connect
+    TOKEN = "placeholder_token"
 
+# Setup Discord intents
 intents = discord.Intents.default()
 intents.messages = True
 intents.message_content = True
@@ -345,7 +351,7 @@ async def yumi_help(ctx):
         ),
         inline=False
     )
-    embed.set_footer(text="Yumi adapts to your style and can be as sweet or as spicy as you want! | https://github.com/your-repo-link")
+    embed.set_footer(text="Yumi adapts to your style and can be as sweet or as spicy as you want! | https://discord.gg/Gx69p58uNE")
     await ctx.send(embed=embed)
 
 @bot.command()
@@ -460,24 +466,31 @@ INTERACTED_USERS = set()
 
 # --- Persistent lockdown storage ---
 LOCKDOWN_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'datasets', 'lockdown_channels.json')
+LOCKED_CHANNELS = defaultdict(set)
 
 def save_lockdown_channels():
     try:
         with open(LOCKDOWN_FILE, 'w', encoding='utf-8') as f:
+            # Save as {guild_id: [channel_id, ...]} for JSON compatibility
             json.dump({str(gid): list(cids) for gid, cids in LOCKED_CHANNELS.items()}, f)
     except Exception as e:
         print(f"[Lockdown] Failed to save: {e}")
 
 def load_lockdown_channels():
+    global LOCKED_CHANNELS
     try:
         with open(LOCKDOWN_FILE, 'r', encoding='utf-8') as f:
             data = json.load(f)
+            # Always convert to defaultdict(set) of sets
+            LOCKED_CHANNELS = defaultdict(set)
             for gid, cids in data.items():
                 LOCKED_CHANNELS[int(gid)] = set(cids)
+                for cid in cids:
+                    print(f"[Lockdown Debug] Loaded Locked Channel {cid} for Guild {gid}")
     except Exception:
-        pass
+        LOCKED_CHANNELS = defaultdict(set)
 
-# Load lockdown channels on startup
+# --- ENSURE LOCKDOWN IS LOADED BEFORE BOT EVENTS ---
 load_lockdown_channels()
 
 # --- Per-user name memory ---
@@ -869,13 +882,25 @@ def get_history_key(message):
         # DM context
         return f"user_{message.author.id}"
 
+@bot.event
 async def on_message(message):
+    global LOCKED_CHANNELS
     if message.author == bot.user:
         return
     # --- Lockdown enforcement ---
-    if message.guild and LOCKED_CHANNELS.get(message.guild.id):
-        if message.channel.id not in LOCKED_CHANNELS[message.guild.id]:
-            return  # Ignore messages in non-locked channels during lockdown
+    # ENSURE LOCKED_CHANNELS is always a defaultdict(set) and up to date
+    if not isinstance(LOCKED_CHANNELS, defaultdict):
+        temp = defaultdict(set)
+        for gid, chans in LOCKED_CHANNELS.items():
+            temp[gid] = set(chans)
+        LOCKED_CHANNELS = temp
+    # Only enforce lockdown if there are locked channels for this guild
+    if message.guild:
+        locked = LOCKED_CHANNELS.get(message.guild.id)
+        if locked and len(locked) > 0:
+            # Only allow commands in any channel, otherwise only respond in locked channels
+            if not message.content.startswith(bot.command_prefix) and message.channel.id not in locked:
+                return  # Ignore all non-command messages in non-locked channels during lockdown
     add_xp(message.author.id, 5)
     ctx = await bot.get_context(message)
     await bot.process_commands(message)
@@ -896,8 +921,6 @@ async def on_message(message):
                 save_convo_history(CONVO_HISTORY)
     except Exception as e:
         print(f"[Yumi Response Error] {e}")
-
-bot.on_message = on_message
 
 # --- Fun/Utility Commands ---
 @bot.command()
@@ -1047,25 +1070,59 @@ async def yumi_blush(ctx):
 @commands.check_any(commands.has_permissions(administrator=True), admin_only())
 async def yumi_reload(ctx):
     """
-    Reload all major bot modules (admin only). Use after code or dataset changes.
+    Reload the entire bot: all modules, datasets, dashboard, and restart all background tasks (admin only).
     """
-    modules = ['llm', 'persona', 'history', 'feedback', 'websearch', 'image_caption']
+    import importlib
+    import sys
+    import asyncio
+    modules = ['llm', 'persona', 'history', 'feedback', 'websearch', 'image_caption', 'web_dashboard']
     reloaded = []
     failed = []
     for mod in modules:
         try:
-            importlib.reload(globals()[mod])
+            importlib.reload(sys.modules[f'bot_core.{mod}'])
             reloaded.append(mod)
         except Exception as e:
             failed.append(f"{mod} ({e})")
     # Reload datasets and persistent data
-    global custom_personas, channel_personas, user_facts, user_xp, scheduled_announcements
+    global custom_personas, channel_personas, user_facts, user_xp, scheduled_announcements, CONTEXT_MODES, LOCKED_CHANNELS
     custom_personas = load_json_file(CUSTOM_PERSONAS_FILE, {})
     channel_personas = load_json_file(CHANNEL_PERSONAS_FILE, {})
     user_facts = load_json_file(USER_FACTS_FILE, {})
     user_xp = load_json_file(USER_XP_FILE, {})
     scheduled_announcements = load_json_file(SCHEDULED_ANNOUNCEMENTS_FILE, [])
-    msg = f"✅ Reloaded modules: {', '.join(reloaded)}."
+    try:
+        import json
+        MODE_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'datasets', 'yumi_modes.json')
+        with open(MODE_FILE, 'r', encoding='utf-8') as f:
+            CONTEXT_MODES = json.load(f)
+    except Exception:
+        CONTEXT_MODES = {}
+    try:
+        LOCKDOWN_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'datasets', 'lockdown_channels.json')
+        with open(LOCKDOWN_FILE, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+            # Always convert to defaultdict(set) of sets after reload
+            LOCKED_CHANNELS = defaultdict(set)
+            for gid, cids in data.items():
+                LOCKED_CHANNELS[int(gid)] = set(cids)
+    except Exception:
+        LOCKED_CHANNELS = defaultdict(set)
+    # Restart dashboard thread to refresh dashboard state
+    try:
+        start_dashboard_thread(PERSONA_MODES, custom_personas, get_level, get_xp)
+        dashboard_status = "Dashboard thread restarted."
+    except Exception as e:
+        dashboard_status = f"Dashboard restart failed: {e}"
+    # Restart background tasks (status, reminders, announcements)
+    try:
+        bot.loop.create_task(rotate_status_task())
+        bot.loop.create_task(yumi_reminder_task())
+        bot.loop.create_task(scheduled_announcement_task())
+        tasks_status = "Background tasks restarted."
+    except Exception as e:
+        tasks_status = f"Background task restart failed: {e}"
+    msg = f"✅ Reloaded modules: {', '.join(reloaded)}.\n{dashboard_status}\n{tasks_status}"
     if failed:
         msg += f"\n❌ Failed: {', '.join(failed)}"
     else:

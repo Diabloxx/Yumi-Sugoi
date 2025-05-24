@@ -1,0 +1,88 @@
+body {
+  background: #f8fafc;
+  color: #222;
+  font-family: 'Segoe UI', Arial, sans-serif;
+}
+.card {
+  background: #fff;
+  border-radius: 1rem;
+  box-shadow: 0 2px 12px 0 rgba(0,0,0,0.07);
+  border: none;
+  color: #222;
+}
+.nav-tabs .nav-link {
+  color: #888;
+  font-weight: 500;
+  border: none;
+  border-radius: 1rem 1rem 0 0;
+  background: #f1f5f9;
+  margin-right: 2px;
+  transition: background 0.2s, color 0.2s;
+}
+.nav-tabs .nav-link.active {
+  color: #fff;
+  background: #2563eb;
+  font-weight: 600;
+}
+.nav-tabs {
+  border-bottom: none;
+}
+.tab-content {
+  margin-top: 1.5rem;
+}
+.card-header {
+  border-radius: 1rem 1rem 0 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  background: #f1f5f9;
+  color: #222;
+  border-bottom: none;
+}
+.bg-primary, .btn-primary {
+  background: #2563eb !important;
+  border: none;
+}
+.bg-success, .btn-success {
+  background: #22c55e !important;
+  border: none;
+}
+.bg-danger, .btn-danger {
+  background: #ef4444 !important;
+  border: none;
+}
+.bg-info, .btn-info {
+  background: #0ea5e9 !important;
+  border: none;
+}
+.bg-secondary, .btn-secondary {
+  background: #64748b !important;
+  border: none;
+}
+.bg-dark, .btn-dark {
+  background: #222 !important;
+  border: none;
+}
+.list-group-item {
+  background: #f8fafc;
+  border: none;
+  border-radius: 0.5rem;
+  margin-bottom: 0.3rem;
+  color: #222;
+}
+.form-control, .form-select {
+  background: #f1f5f9;
+  border-radius: 0.5rem;
+  border: 1px solid #e5e7eb;
+  color: #222;
+}
+.alert {
+  border-radius: 0.5rem;
+}
+.navbar {
+  border-radius: 0 0 1rem 1rem;
+  box-shadow: 0 2px 12px 0 rgba(0,0,0,0.07);
+}
+footer {
+  color: #888;
+  background: #fff;
+}

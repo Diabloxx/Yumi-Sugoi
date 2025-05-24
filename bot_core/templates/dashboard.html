@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yumi Sugoi Dashboard</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link rel="stylesheet" href="/static/dashboard.css">
+    <!-- Custom styles moved to dashboard.css -->
+</head>
+<body>
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4">
+  <div class="container-fluid">
+    <a class="navbar-brand" href="#"><i class="fa-solid fa-robot"></i> Yumi Sugoi Dashboard</a>
+  </div>
+</nav>
+<div class="container">
+    <ul class="nav nav-tabs mb-4" id="dashboardTabs" role="tablist">
+      <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="personas-tab" data-bs-toggle="tab" data-bs-target="#personas" type="button" role="tab">Personas</button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="xp-tab" data-bs-toggle="tab" data-bs-target="#xp" type="button" role="tab">User XP</button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="servers-tab" data-bs-toggle="tab" data-bs-target="#servers" type="button" role="tab">Servers</button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="moderation-tab" data-bs-toggle="tab" data-bs-target="#moderation" type="button" role="tab">Moderation</button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="livechat-tab" data-bs-toggle="tab" data-bs-target="#livechat" type="button" role="tab">Live Chat</button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="usermanagement-tab" data-bs-toggle="tab" data-bs-target="#usermanagement" type="button" role="tab">User Management</button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="scheduled-tab" data-bs-toggle="tab" data-bs-target="#scheduled" type="button" role="tab">Scheduled Tasks</button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="analytics-tab" data-bs-toggle="tab" data-bs-target="#analytics" type="button" role="tab">Analytics</button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="auditlog-tab" data-bs-toggle="tab" data-bs-target="#auditlog" type="button" role="tab">Audit Log</button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="chatlogs-tab" data-bs-toggle="tab" data-bs-target="#chatlogs" type="button" role="tab">Chat Logs</button>
+      </li>
+    </ul>
+    <div class="tab-content" id="dashboardTabsContent">
+      <div class="tab-pane fade show active" id="personas" role="tabpanel">
+        <div class="card mb-4"><div class="card-body" id="personas-list">Loading personas...</div></div>
+        <div class="card mb-4"><div class="card-body" id="persona-management">Loading persona management...</div></div>
+      </div>
+      <div class="tab-pane fade" id="xp" role="tabpanel">
+        <div class="card mb-4"><div class="card-body">
+          <form id="xp-form" class="mb-2">
+            <div class="input-group">
+              <input type="number" class="form-control" id="user-id-input" placeholder="Enter User ID">
+              <button class="btn btn-success" type="submit"><i class="fa-solid fa-magnifying-glass"></i> Lookup</button>
+            </div>
+          </form>
+          <div id="xp-result">Loading XP data...</div>
+        </div></div>
+      </div>
+      <div class="tab-pane fade" id="servers" role="tabpanel">
+        <div class="card mb-4"><div class="card-body" id="servers-list">Loading servers...</div></div>
+        <div class="card mb-4"><div class="card-body" id="official-server-settings">Loading server settings...</div></div>
+      </div>
+      <div class="tab-pane fade" id="moderation" role="tabpanel">
+        <div class="card mb-4"><div class="card-body" id="moderation-logs">Loading moderation logs...</div></div>
+        <div class="card mb-4">
+          <div class="card-header bg-danger text-white"><i class="fas fa-gavel"></i> Moderation Tools</div>
+          <div class="card-body">
+            <button class="btn btn-warning mb-2" id="refresh-moderation-logs">Refresh Moderation Logs</button>
+            <ul id="moderation-logs-list" class="list-group mb-2"></ul>
+            <div class="alert alert-info">Moderation actions and logs will appear here.</div>
+          </div>
+        </div>
+      </div>
+      <div class="tab-pane fade" id="livechat" role="tabpanel">
+        <div id="live-chat"></div>
+      </div>
+      <div class="tab-pane fade" id="usermanagement" role="tabpanel">
+        <div class="card mb-4"><div class="card-body" id="user-management">Loading user management...</div></div>
+      </div>
+      <div class="tab-pane fade" id="scheduled" role="tabpanel">
+        <div class="card mb-4"><div class="card-body" id="scheduled-tasks">Loading scheduled tasks...</div></div>
+      </div>
+      <div class="tab-pane fade" id="analytics" role="tabpanel">
+        <div class="card mb-4">
+          <div class="card-header bg-info text-white"><i class="fas fa-chart-bar"></i> Analytics</div>
+          <div class="card-body">
+            <div id="analytics-summary" class="mb-2">Loading analytics...</div>
+            <canvas id="analyticsChart" height="100"></canvas>
+          </div>
+        </div>
+      </div>
+      <div class="tab-pane fade" id="auditlog" role="tabpanel">
+        <div class="card mb-4">
+          <div class="card-header bg-secondary text-white"><i class="fas fa-clipboard-list"></i> Audit Logs</div>
+          <div class="card-body">
+            <button class="btn btn-secondary mb-2" id="refresh-audit-logs">Refresh Audit Logs</button>
+            <ul id="audit-logs" class="list-group mb-2"></ul>
+            <div class="alert alert-info">Audit log entries will appear here.</div>
+          </div>
+        </div>
+      </div>
+      <div class="tab-pane fade" id="chatlogs" role="tabpanel">
+        <div class="card mb-4">
+          <div class="card-header bg-dark text-white"><i class="fas fa-comments"></i> Chat Logs (Moderation Review)</div>
+          <div class="card-body">
+            <button class="btn btn-dark mb-2" id="refresh-chat-logs">Refresh Chat Logs</button>
+            <div id="chat-logs" style="max-height: 300px; overflow-y: auto; background:#f1f5f9;">Loading chat logs...</div>
+            <div class="alert alert-info">Review chat logs for abusive or inappropriate use of the bot.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+</div>
+<footer class="text-center text-muted py-3 bg-white">
+    <small>Yumi Sugoi &copy; 2025 | <a href="https://github.com/Diabloxx/Yumi-Sugoi" target="_blank" class="text-info">GitHub</a></small>
+</footer>
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="/static/dashboard.js"></script>
+</body>
+</html>
