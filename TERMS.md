@@ -1,6 +1,6 @@
 # 📜 Yumi Sugoi - Terms of Service
 
-**Effective Date:** [Insert Date]
+**Effective Date:** 24.05.2025 (05.24.2025)
 
 Welcome to the official Yumi Sugoi Discord server and chatbot experience. By interacting with Yumi, either on this server or through any bot integration, you agree to the following Terms of Service:
 
