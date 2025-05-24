@@ -1,11 +1,12 @@
 # Yumi Sugoi Discord AI Chatbot
 
-Yumi Sugoi is a modular, multi-persona Discord AI chatbot powered by OpenAI and self-learning Q&A. She supports per-user and per-server persona modes, persistent memory, and a modern Discord experience.
+Yumi Sugoi is a modular, multi-persona Discord AI chatbot powered by Ollama and self-learning Q&A. She supports per-user and per-server persona modes, persistent memory, and a modern Discord experience.
 
 ## Features
-- Multiple persona modes (normal, mistress, bdsm, girlfriend, wifey)
+- Multiple persona modes (normal, mistress, bdsm, girlfriend, wifey, tsundere, shy, and more)
 - Per-user and per-server mode switching (with persistence)
 - Self-learning Q&A (teachable by users)
+- Local LLM integration with Ollama (using gemma3:4b by default)
 - Persistent per-user name memory
 - Human-like typing and chat
 - Discord slash commands and admin support
@@ -13,9 +14,12 @@ Yumi Sugoi is a modular, multi-persona Discord AI chatbot powered by OpenAI and 
 - Rotating Discord status
 - Image captioning (BLIP)
 - Web search fallback
+- Modern white UI dashboard for administration
 
 ## New Features (2025)
 
+- **Ollama Integration:** Use your own local network Ollama instance (gemma3:4b model by default) for complete privacy control and no usage costs.
+- **Configurable LLM Settings:** Customize model, temperature, and other parameters via environment variables.
 - **Admin Hot-Reload:** `!yumi_reload` lets admins reload bot modules and persistent data without restarting the bot.
 - **Advanced Persona System:** Create, edit, and activate custom personas. Set personas per channel. Switch between built-in and user personas.
 - **Channel Personas:** Assign a persona to a specific channel for unique vibes.
@@ -25,7 +29,7 @@ Yumi Sugoi is a modular, multi-persona Discord AI chatbot powered by OpenAI and 
 - **Fun/Utility Commands:** Polls (`!yumi_poll`), suggestion box (`!yumi_suggest`), meme generator (`!yumi_meme`), and more.
 - **Media/AI Features:** Placeholders for AI art (`!yumi_aiart`) and TTS/voice (`!yumi_tts`).
 - **Advanced Moderation:** Auto-moderation, message delete/member join logging to #yumi-logs.
-- **Web Dashboard (WIP):** Flask API endpoints for personas and XP, groundwork for a future dashboard.
+- **Web Dashboard:** Live chat console, user management, scheduled tasks, persona management, server controls, and moderation logs with modern white UI.
 
 ## Requirements
 - Python 3.9+
@@ -37,28 +41,34 @@ Yumi Sugoi is a modular, multi-persona Discord AI chatbot powered by OpenAI and 
 ## Project Structure
 
 ```
-AI-Discord/
+Yumi-Sugoi/
 │   README.md
 │   requirements.txt
 │   .gitignore
-│   run_bot.py
-│   cleanup_datasets.py
+│   .env                  # Environment variables (DISCORD_TOKEN, Ollama settings)
+│   .env.example          # Example environment variables
+│   run_bot.py            # Main entry point
+│   CHANGELOG.md          # Version history
 │
 ├── bot_core/
 │   ├── __init__.py
 │   ├── main.py           # Main bot logic
 │   ├── persona.py        # Persona logic
-│   ├── llm.py            # LLM/OpenAI logic
+│   ├── llm.py            # LLM/Ollama integration
 │   ├── history.py        # Conversation history
 │   ├── feedback.py       # Feedback and learning
 │   ├── websearch.py      # Web search fallback
 │   ├── image_caption.py  # Image captioning
+│   ├── web_dashboard.py  # Web dashboard backend
+│   ├── static/           # Static assets for dashboard
+│   └── templates/        # HTML templates for dashboard
 │
 ├── datasets/
 │   ├── chatbot_dataset.json   # Q&A pairs (self-learning)
-│   ├── user_names.json        # Per-user name memory
-│   ├── yumi_modes.json        # Persona mode persistence
-│   └── README.txt             # Dataset info
+│   ├── user_facts.json        # User long-term memory
+│   ├── custom_personas.json   # Custom persona data
+│   ├── user_xp.json           # User XP/leveling data
+│   ├── ollama_log.txt         # Log of prompts and responses
 ```
 
 ## Setup
@@ -66,15 +76,19 @@ AI-Discord/
    ```
    pip install -r requirements.txt
    ```
-2. Create a `.env` file with your Discord and OpenAI tokens:
+2. Create a `.env` file with your Discord token and Ollama settings:
    ```
    DISCORD_TOKEN=your_discord_token_here
-   OPENAI_API_KEY=your_openai_api_key_here
+   OLLAMA_URL=http://10.0.0.28:11434/api/generate
+   OLLAMA_MODEL=gemma3:4b
+   OLLAMA_TEMPERATURE=0.7
+   OLLAMA_NUM_PREDICT=256
    ```
 3. Run the bot:
    ```
    python run_bot.py
    ```
+4. Access the web dashboard at http://localhost:5000
 
 ## Usage Example
 

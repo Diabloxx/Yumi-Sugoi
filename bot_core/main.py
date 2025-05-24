@@ -634,8 +634,8 @@ async def yumi_admin_tools(ctx):
     """
     await ctx.send(
         "**Yumi Admin Tools:**\n"
-        "- `!yumi_lockdown` — Only Yumi can talk in this channel (toggle)\n"
-        "- `!yumi_unlock` — Remove lockdown, everyone can talk again\n"
+        "- `!yumi_lockdown` — Restrict Yumi to only respond in the current channel\n"
+        "- `!yumi_unlock` — Allow Yumi to respond in all channels again\n"
         "- `!yumi_purge <N>` — Delete the last N messages (admin only)\n"
         "- `!yumi_say <message>` — Make Yumi say something (admin only)\n"
         "- `!yumi_admin_tools` — Show this help message\n"
@@ -648,16 +648,15 @@ LOCKED_CHANNELS = defaultdict(set)  # {guild_id: set(channel_ids)}
 @commands.check_any(commands.has_permissions(administrator=True), admin_only())
 async def yumi_lockdown(ctx):
     """
-    Only allow Yumi to talk in this channel (toggle on).
+    Restrict Yumi to only respond in this channel.
     """
     channel = ctx.channel
     guild = ctx.guild
     LOCKED_CHANNELS[guild.id].add(channel.id)
     save_lockdown_channels()
-    overwrite = discord.PermissionOverwrite()
-    overwrite.send_messages = False
+    
     try:
-        await channel.set_permissions(guild.default_role, overwrite=overwrite)
+        # No need to modify channel permissions - Yumi will be locked to this channel through code logic
         await ctx.send(f"🔒 Yumi is now locked to <#{channel.id}>. She will only reply in this channel until unlocked.\n"
                        f"Use `!yumi_unlock` in this channel to remove lockdown, or use `!yumi_lockdown` in another channel to move her.")
     except Exception as e:
@@ -668,12 +667,13 @@ async def yumi_lockdown(ctx):
 @commands.check_any(commands.has_permissions(administrator=True), admin_only())
 async def yumi_unlock(ctx):
     """
-    Remove lockdown, allow everyone to talk again.
+    Remove lockdown, allow Yumi to respond in all channels again.
     """
     channel = ctx.channel
     guild = ctx.guild
-    await channel.set_permissions(guild.default_role, overwrite=None)
-    await ctx.send("🔓 Lockdown lifted! Everyone can talk again.")
+    
+    # No need to modify channel permissions since we no longer set them in lockdown
+    await ctx.send("🔓 Lockdown lifted! Yumi will now respond in all channels again.")
     LOCKED_CHANNELS[guild.id].discard(channel.id)
     save_lockdown_channels()
 

@@ -1,5 +1,30 @@
 # Yumi Sugoi Changelog
 
+## [v1.4.1] - 2025-05-24
+### Fixed
+- Fixed `!yumi_lockdown` command that was incorrectly changing channel permissions. Now it correctly only restricts Yumi to respond in the locked channel without preventing users from speaking.
+- Updated documentation for lockdown feature to clarify its intended behavior.
+
+## [v1.4.0] - 2025-05-24
+### Added
+- **Ollama Integration:** Replaced OpenAI with local network Ollama for LLM capabilities.
+- **Configurable LLM Settings:** Added support for environment variables to customize the Ollama model, temperature, and other parameters.
+- **Enhanced Error Handling:** Better error messages for LLM communication issues.
+- **Prompt Logging:** Optional logging of all prompts and responses to help with fine-tuning.
+- **Modern White UI:** Redesigned dashboard with cleaner, modern white UI for better usability.
+
+### Changed
+- Removed OpenAI dependency in favor of Ollama for better privacy and cost control.
+- Updated environment configuration to use Ollama-specific settings.
+- Improved compatibility layer to ensure seamless transition from previous OpenAI implementation.
+- Restyled dashboard with a modern white UI theme.
+
+### Fixed
+- Fixed Live Chat UI rendering in the dashboard.
+- Fixed User Management tab UI issues.
+- Fixed syntax error in user context handling.
+- Added missing `load_hf_model()` function in llm.py for backward compatibility.
+
 ## [v1.3.0] - 2025-05-23
 ### Added
 - Major web dashboard upgrade: modern UI with Bootstrap and Font Awesome.
