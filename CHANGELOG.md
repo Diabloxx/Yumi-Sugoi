@@ -3,6 +3,7 @@
 ## [v1.4.1] - 2025-05-24
 ### Fixed
 - Fixed `!yumi_lockdown` command that was incorrectly changing channel permissions. Now it correctly only restricts Yumi to respond in the locked channel without preventing users from speaking.
+- Fixed issue with lockdown settings not persisting after bot restart.
 - Updated documentation for lockdown feature to clarify its intended behavior.
 
 ## [v1.4.0] - 2025-05-24

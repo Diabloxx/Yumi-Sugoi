@@ -21,6 +21,7 @@
 - ✅ Fixed Scheduled Tasks tab layout and functionality
 - ✅ Fixed environment configuration issues
 - ✅ Fixed `!yumi_lockdown` command to not change channel permissions
+- ✅ Fixed issue with lockdown settings not persisting after bot restart
 
 ### Documentation
 - ✅ Updated README.md with Ollama integration details

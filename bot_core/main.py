@@ -466,6 +466,7 @@ INTERACTED_USERS = set()
 
 # --- Persistent lockdown storage ---
 LOCKDOWN_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'datasets', 'lockdown_channels.json')
+# Define the defaultdict once, and always use the global keyword in functions to refer to it
 LOCKED_CHANNELS = defaultdict(set)
 
 def save_lockdown_channels():
@@ -481,13 +482,21 @@ def load_lockdown_channels():
     try:
         with open(LOCKDOWN_FILE, 'r', encoding='utf-8') as f:
             data = json.load(f)
-            # Always convert to defaultdict(set) of sets
-            LOCKED_CHANNELS = defaultdict(set)
+            # Create a new defaultdict for lockdown channels
+            temp_locked_channels = defaultdict(set)
             for gid, cids in data.items():
-                LOCKED_CHANNELS[int(gid)] = set(cids)
+                temp_locked_channels[int(gid)] = set(cids)
                 for cid in cids:
                     print(f"[Lockdown Debug] Loaded Locked Channel {cid} for Guild {gid}")
-    except Exception:
+            
+            # Only after successful loading, update the global variable
+            LOCKED_CHANNELS = temp_locked_channels
+            print(f"[Lockdown] Successfully loaded {sum(len(cids) for cids in LOCKED_CHANNELS.values())} locked channels for {len(LOCKED_CHANNELS)} guilds")
+    except FileNotFoundError:
+        print("[Lockdown] No lockdown file found, starting with empty lockdown settings")
+        LOCKED_CHANNELS = defaultdict(set)
+    except Exception as e:
+        print(f"[Lockdown] Error loading lockdown settings: {e}")
         LOCKED_CHANNELS = defaultdict(set)
 
 # --- ENSURE LOCKDOWN IS LOADED BEFORE BOT EVENTS ---
@@ -642,7 +651,7 @@ async def yumi_admin_tools(ctx):
     )
 
 # --- LOCKDOWN COMMANDS ---
-LOCKED_CHANNELS = defaultdict(set)  # {guild_id: set(channel_ids)}
+# Reusing the LOCKED_CHANNELS defined at the top of the file - do not redefine it here
 
 @bot.command()
 @commands.check_any(commands.has_permissions(administrator=True), admin_only())
@@ -1114,14 +1123,14 @@ async def yumi_reload(ctx):
         dashboard_status = "Dashboard thread restarted."
     except Exception as e:
         dashboard_status = f"Dashboard restart failed: {e}"
-    # Restart background tasks (status, reminders, announcements)
-    try:
+    # Restart background tasks (status, reminders, announcements)    try:
         bot.loop.create_task(rotate_status_task())
         bot.loop.create_task(yumi_reminder_task())
         bot.loop.create_task(scheduled_announcement_task())
         tasks_status = "Background tasks restarted."
     except Exception as e:
         tasks_status = f"Background task restart failed: {e}"
+    
     msg = f"✅ Reloaded modules: {', '.join(reloaded)}.\n{dashboard_status}\n{tasks_status}"
     if failed:
         msg += f"\n❌ Failed: {', '.join(failed)}"
@@ -1130,4 +1139,10 @@ async def yumi_reload(ctx):
     await ctx.send(msg)
 
 def run():
+    # Ensure lockdown channels are loaded from the file
+    print("[Startup] Loading lockdown channels...")
+    load_lockdown_channels()
+    print(f"[Startup] Loaded lockdown channels: {LOCKED_CHANNELS}")
+    
+    # Run the bot
     bot.run(TOKEN)
