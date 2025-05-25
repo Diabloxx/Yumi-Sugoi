@@ -459,7 +459,12 @@ feedback_scores, user_feedback = feedback.load_feedback()
 BLIP_READY, blip_processor, blip_model = image_caption.load_blip()
 AI_READY, ai_tokenizer, ai_model = llm.load_hf_model()
 
-import json
+# --- Load custom commands module ---
+from . import commands as yumi_commands
+
+def load_all_custom_commands(bot):
+    yumi_commands.setup_prefix_commands(bot)
+    yumi_commands.setup_slash_commands(bot)
 
 MODE_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'datasets', 'yumi_modes.json')
 try:
@@ -1166,7 +1171,7 @@ def load_dashboard_stats():
                 for user_id, stats in data.items():
                     user_stats[user_id].update(stats)
         print("[Stats] Successfully loaded dashboard statistics")
-    except Exception as e:
+    except Exception as e: 
         print(f"[Stats] Error loading statistics: {e}")
         # Initialize empty stats if loading fails
         message_stats.clear()
@@ -1305,7 +1310,9 @@ def save_message_stats():
             # Convert defaultdict to regular dict for JSON serialization
             json.dump(dict(message_stats), f, ensure_ascii=False, indent=2)
     except Exception as e:
+        # Handle any exceptions that may occur during saving
         print(f"Error saving message stats: {e}")
+    
 
 def load_message_stats():
     """Load message statistics from file"""
@@ -1317,7 +1324,9 @@ def load_message_stats():
     except FileNotFoundError:
         pass  # File doesn't exist yet
     except Exception as e:
+        # Handle any other exceptions that may occur
         print(f"Error loading message stats: {e}")
+    
 
 # Initialize statistics tracking
 message_stats = defaultdict(int)
@@ -1357,7 +1366,9 @@ async def update_message_stats(message):
             save_message_stats()
 
     except Exception as e:
+        # Log any errors that occur during stats update
         print(f"Error updating message stats: {e}")
+        # Handle any exceptions that may occur during stats update
 
 # --- Utility stubs for context-aware conversation (if not already defined) ---
 def update_command_stats(ctx):
@@ -1424,4 +1435,20 @@ def run():
 
 # Only run if this file is run directly
 if __name__ == "__main__":
+    load_all_custom_commands(bot)
     run()
+
+@bot.command()
+@commands.check(lambda ctx: is_admin(ctx.author))
+async def yumi_reload(ctx):
+    """Reload Yumi's modules and configuration (owner only)."""
+    try:
+        import importlib
+        importlib.reload(yumi_commands)
+        importlib.reload(history)
+        importlib.reload(feedback)
+        importlib.reload(image_caption)
+        importlib.reload(llm)
+        await ctx.send("Yumi's modules reloaded!")
+    except Exception as e:
+        await ctx.send(f"Failed to reload: {e}")

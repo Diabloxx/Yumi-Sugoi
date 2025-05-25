@@ -49,6 +49,10 @@
 - ✅ Added persistence reloading for conversation history and feedback
 - ✅ Improved dashboard statistics loading with proper Python syntax
 - ✅ Added error handling and feedback for reload operations
+- ✅ Added a secure bot restart command (`!restartbot`) to `bot_core/commands.py`
+    - Only the user with Discord ID 594793428634566666 can use this command
+    - The command restarts the entire bot process using `os.execv`, ensuring a full restart without manual intervention
+    - Unauthorized users receive a denial message
 
 ## Next Steps
 1. Test the Live Chat functionality with real servers
@@ -58,6 +62,7 @@
 5. Test the fixed lockdown feature to ensure it works as expected
 6. Test the new hot-reload functionality in production environment
 7. Monitor dashboard statistics loading performance
+8. Ensure the secure restart command works as intended and is properly restricted
 
 ## Known Issues
 No critical issues - recent fixes have addressed all known problems.
