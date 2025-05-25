@@ -966,7 +966,7 @@ async def on_message(message):
     await update_message_stats(message)
     ctx = await bot.get_context(message)
     if ctx.valid:
-        await update_command_stats(ctx)
+        update_command_stats(ctx)  # <-- Remove 'await' here, as update_command_stats is not async
         await bot.process_commands(message)
         return
     try:
