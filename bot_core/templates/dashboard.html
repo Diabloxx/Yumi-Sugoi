@@ -4,139 +4,824 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Yumi Sugoi Dashboard</title>
+    <!-- Google Font: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Font Awesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <!-- Chart.js for analytics -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Socket.IO client -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.4/socket.io.min.js"></script>
+    <!-- Custom styles -->
     <link rel="stylesheet" href="/static/dashboard.css">
-    <!-- Custom styles moved to dashboard.css -->
 </head>
 <body>
-<nav class="navbar navbar-expand-lg navbar-light bg-white mb-4 border-bottom">
-  <div class="container-fluid">
-    <a class="navbar-brand" href="#"><i class="fa-solid fa-robot text-primary"></i> Yumi Sugoi Dashboard</a>
-  </div>
-</nav>
-<div class="container">
-    <ul class="nav nav-tabs mb-4" id="dashboardTabs" role="tablist">
-      <li class="nav-item" role="presentation">
-        <button class="nav-link active" id="personas-tab" data-bs-toggle="tab" data-bs-target="#personas" type="button" role="tab">Personas</button>
-      </li>
-      <li class="nav-item" role="presentation">
-        <button class="nav-link" id="xp-tab" data-bs-toggle="tab" data-bs-target="#xp" type="button" role="tab">User XP</button>
-      </li>
-      <li class="nav-item" role="presentation">
-        <button class="nav-link" id="servers-tab" data-bs-toggle="tab" data-bs-target="#servers" type="button" role="tab">Servers</button>
-      </li>
-      <li class="nav-item" role="presentation">
-        <button class="nav-link" id="moderation-tab" data-bs-toggle="tab" data-bs-target="#moderation" type="button" role="tab">Moderation</button>
-      </li>
-      <li class="nav-item" role="presentation">
-        <button class="nav-link" id="livechat-tab" data-bs-toggle="tab" data-bs-target="#livechat" type="button" role="tab">Live Chat</button>
-      </li>
-      <li class="nav-item" role="presentation">
-        <button class="nav-link" id="usermanagement-tab" data-bs-toggle="tab" data-bs-target="#usermanagement" type="button" role="tab">User Management</button>
-      </li>
-      <li class="nav-item" role="presentation">
-        <button class="nav-link" id="scheduled-tab" data-bs-toggle="tab" data-bs-target="#scheduled" type="button" role="tab">Scheduled Tasks</button>
-      </li>
-      <li class="nav-item" role="presentation">
-        <button class="nav-link" id="analytics-tab" data-bs-toggle="tab" data-bs-target="#analytics" type="button" role="tab">Analytics</button>
-      </li>
-      <li class="nav-item" role="presentation">
-        <button class="nav-link" id="auditlog-tab" data-bs-toggle="tab" data-bs-target="#auditlog" type="button" role="tab">Audit Log</button>
-      </li>
-      <li class="nav-item" role="presentation">
-        <button class="nav-link" id="chatlogs-tab" data-bs-toggle="tab" data-bs-target="#chatlogs" type="button" role="tab">Chat Logs</button>
-      </li>
-    </ul>
-    <div class="tab-content" id="dashboardTabsContent">
-      <div class="tab-pane fade show active" id="personas" role="tabpanel">
-        <div class="card mb-4"><div class="card-body" id="personas-list">Loading personas...</div></div>
-        <div class="card mb-4"><div class="card-body" id="persona-management">Loading persona management...</div></div>
-      </div>
-      <div class="tab-pane fade" id="xp" role="tabpanel">
-        <div class="card mb-4"><div class="card-body">
-          <form id="xp-form" class="mb-2">
-            <div class="input-group">
-              <input type="number" class="form-control" id="user-id-input" placeholder="Enter User ID">
-              <button class="btn btn-success" type="submit"><i class="fa-solid fa-magnifying-glass"></i> Lookup</button>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg mb-4">
+        <div class="container">
+            <a class="navbar-brand" href="#">
+                <i class="fa-solid fa-robot me-2 text-primary"></i>
+                <span>Yumi Sugoi Dashboard</span>
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" id="refreshData">
+                            <i class="fas fa-sync-alt me-1"></i> Refresh Data
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="https://github.com/Diabloxx/Yumi-Sugoi" target="_blank">
+                            <i class="fab fa-github me-1"></i> GitHub
+                        </a>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-cog me-1"></i> Settings
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="#" id="botRestart"><i class="fas fa-power-off me-2 text-danger"></i>Restart Bot</a></li>
+                            <li><a class="dropdown-item" href="#" id="botUpdate"><i class="fas fa-download me-2 text-primary"></i>Check Updates</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="#" id="resetSettings"><i class="fas fa-undo me-2 text-warning"></i>Reset Settings</a></li>
+                        </ul>
+                    </li>
+                </ul>
             </div>
-          </form>
-          <div id="xp-result">Loading XP data...</div>
-        </div></div>
-      </div>
-      <div class="tab-pane fade" id="servers" role="tabpanel">
-        <div class="card mb-4"><div class="card-body" id="servers-list">Loading servers...</div></div>
-        <div class="card mb-4"><div class="card-body" id="official-server-settings">Loading server settings...</div></div>
-      </div>
-      <div class="tab-pane fade" id="moderation" role="tabpanel">
-        <div class="card mb-4"><div class="card-body" id="moderation-logs">Loading moderation logs...</div></div>
-        <div class="card mb-4">
-          <div class="card-header bg-danger text-white"><i class="fas fa-gavel"></i> Moderation Tools</div>
-          <div class="card-body">
-            <button class="btn btn-warning mb-2" id="refresh-moderation-logs">Refresh Moderation Logs</button>
-            <ul id="moderation-logs-list" class="list-group mb-2"></ul>
-            <div class="alert alert-info">Moderation actions and logs will appear here.</div>
-          </div>
         </div>
-      </div>
-      <div class="tab-pane fade" id="livechat" role="tabpanel">
-        <div id="live-chat"></div>
-      </div>      <div class="tab-pane fade" id="usermanagement" role="tabpanel">
-        <div class="card mb-4">
-          <div class="card-header">
-            <i class="fas fa-users"></i> User Management
-          </div>
-          <div class="card-body" id="user-management">Loading user management...</div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container main-content">
+        <!-- Stats overview cards -->
+        <div class="row mb-4 fade-in" style="--delay: 0.1s">
+            <div class="col-md-3 mb-3">                <div class="stat-card" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)">
+                    <div class="icon"><i class="fas fa-server"></i></div>
+                    <div class="number" id="server-count">-</div>
+                    <div class="label">Servers</div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="stat-card" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%)">
+                    <div class="icon"><i class="fas fa-users"></i></div>
+                    <div class="number" id="user-count">-</div>
+                    <div class="label">Users</div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="stat-card" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%)">
+                    <div class="icon"><i class="fas fa-comment-dots"></i></div>
+                    <div class="number" id="message-count">-</div>
+                    <div class="label">Messages</div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="stat-card" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%)">
+                    <div class="icon"><i class="fas fa-heart"></i></div>
+                    <div class="number" id="persona-count">-</div>
+                    <div class="label">Personas</div>
+                </div>
+            </div>
         </div>
-      </div><div class="tab-pane fade" id="scheduled" role="tabpanel">
-        <div class="card mb-4">
-          <div class="card-header d-flex justify-content-between align-items-center">
-            <span><i class="fas fa-calendar"></i> Scheduled Tasks</span>
-            <button class="btn btn-sm btn-primary" id="add-scheduled-btn"><i class="fas fa-plus"></i> Add Task</button>
-          </div>
-          <div class="card-body">
-            <div id="scheduled-list">Loading scheduled tasks...</div>
-          </div>
+
+        <!-- Tabs navigation -->
+        <ul class="nav nav-tabs mb-4" id="dashboardTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="overview-tab" data-bs-toggle="tab" data-bs-target="#overview" type="button" role="tab">
+                    <i class="fas fa-home me-1"></i> Overview
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="personas-tab" data-bs-toggle="tab" data-bs-target="#personas" type="button" role="tab">
+                    <i class="fas fa-theater-masks me-1"></i> Personas
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="servers-tab" data-bs-toggle="tab" data-bs-target="#servers" type="button" role="tab">
+                    <i class="fas fa-server me-1"></i> Servers
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="users-tab" data-bs-toggle="tab" data-bs-target="#users" type="button" role="tab">
+                    <i class="fas fa-users me-1"></i> Users
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="moderation-tab" data-bs-toggle="tab" data-bs-target="#moderation" type="button" role="tab">
+                    <i class="fas fa-shield-alt me-1"></i> Moderation
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="analytics-tab" data-bs-toggle="tab" data-bs-target="#analytics" type="button" role="tab">
+                    <i class="fas fa-chart-line me-1"></i> Analytics
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="livechat-tab" data-bs-toggle="tab" data-bs-target="#livechat" type="button" role="tab">
+                    <i class="fas fa-comments me-1"></i> Live Chat
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="scheduled-tab" data-bs-toggle="tab" data-bs-target="#scheduled" type="button" role="tab">
+                    <i class="fas fa-calendar-alt me-1"></i> Scheduled
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="settings-tab" data-bs-toggle="tab" data-bs-target="#settings" type="button" role="tab">
+                    <i class="fas fa-cog me-1"></i> Settings
+                </button>
+            </li>
+        </ul>
+
+        <!-- Tab content -->
+        <div class="tab-content" id="dashboardTabsContent">
+            <!-- Overview Tab -->
+            <div class="tab-pane fade show active" id="overview" role="tabpanel">
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="card mb-4 fade-in" style="--delay: 0.2s">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <span><i class="fas fa-chart-bar me-2"></i> Activity Overview</span>
+                                <div class="btn-group">
+                                    <button class="btn btn-sm btn-outline-secondary active" data-period="day">Day</button>
+                                    <button class="btn btn-sm btn-outline-secondary" data-period="week">Week</button>
+                                    <button class="btn btn-sm btn-outline-secondary" data-period="month">Month</button>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <canvas id="activityChart" height="250"></canvas>
+                            </div>
+                        </div>
+                        
+                        <div class="card mb-4 fade-in" style="--delay: 0.3s">
+                            <div class="card-header">
+                                <i class="fas fa-server me-2"></i> Active Servers
+                            </div>
+                            <div class="card-body">
+                                <div id="active-servers">Loading servers...</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <div class="card mb-4 fade-in" style="--delay: 0.2s">
+                            <div class="card-header">
+                                <i class="fas fa-bolt me-2"></i> Quick Actions
+                            </div>
+                            <div class="card-body">
+                                <div class="d-grid gap-2">
+                                    <button class="btn btn-primary" id="quickAction-announce">
+                                        <i class="fas fa-bullhorn me-2"></i> Send Announcement
+                                    </button>
+                                    <button class="btn btn-info" id="quickAction-status">
+                                        <i class="fas fa-info-circle me-2"></i> Change Status
+                                    </button>
+                                    <button class="btn btn-success" id="quickAction-schedule">
+                                        <i class="fas fa-calendar-plus me-2"></i> Schedule Message
+                                    </button>
+                                    <button class="btn btn-warning" id="quickAction-lockdown">
+                                        <i class="fas fa-lock me-2"></i> Toggle Lockdown
+                                    </button>
+                                    <button class="btn btn-danger" id="quickAction-reload">
+                                        <i class="fas fa-sync me-2"></i> Reload Bot Modules
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="card mb-4 fade-in" style="--delay: 0.3s">
+                            <div class="card-header">
+                                <i class="fas fa-bell me-2"></i> Recent Notifications
+                            </div>
+                            <div class="card-body">
+                                <div id="notifications">Loading notifications...</div>
+                            </div>
+                        </div>
+                        
+                        <div class="card mb-4 fade-in" style="--delay: 0.4s">
+                            <div class="card-header">
+                                <i class="fas fa-heartbeat me-2"></i> System Status
+                            </div>
+                            <div class="card-body">
+                                <div id="system-status">Loading system status...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Personas Tab -->
+            <div class="tab-pane fade" id="personas" role="tabpanel">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <i class="fas fa-theater-masks me-2"></i> Available Personas
+                            </div>
+                            <div class="card-body" id="personas-list">
+                                Loading personas...
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="card mb-4">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <span><i class="fas fa-plus-circle me-2"></i> Create New Persona</span>
+                                <button class="btn btn-sm btn-primary" id="create-persona-btn">Create</button>
+                            </div>
+                            <div class="card-body">
+                                <form id="create-persona-form">
+                                    <div class="mb-3">
+                                        <label class="form-label">Persona Name</label>
+                                        <input type="text" class="form-control" name="personaName" placeholder="e.g., ninja, pirate, teacher">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Persona Description</label>
+                                        <textarea class="form-control" name="personaDesc" rows="4" placeholder="Describe how this persona should behave, speak, and respond..."></textarea>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Sample Responses (optional)</label>
+                                        <textarea class="form-control" name="personaSamples" rows="3" placeholder="Sample phrases or responses this persona might use..."></textarea>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary">Create Persona</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Servers Tab -->
+            <div class="tab-pane fade" id="servers" role="tabpanel">
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <i class="fas fa-server me-2"></i> Servers List
+                            </div>
+                            <div class="card-body" id="servers-list">
+                                Loading servers...
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <i class="fas fa-cog me-2"></i> Server Settings
+                            </div>
+                            <div class="card-body" id="server-settings">
+                                Select a server to view settings
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Users Tab -->
+            <div class="tab-pane fade" id="users" role="tabpanel">
+                <div class="row">
+                    <div class="col-md-12 mb-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <i class="fas fa-search me-2"></i> User Search
+                            </div>
+                            <div class="card-body">
+                                <form id="user-search-form" class="mb-3">
+                                    <div class="input-group">
+                                        <input type="text" class="form-control" id="user-search-input" placeholder="Search by username or ID...">
+                                        <button class="btn btn-primary" type="submit">
+                                            <i class="fas fa-search"></i> Search
+                                        </button>
+                                    </div>
+                                </form>
+                                <div id="user-search-results" class="mb-3">
+                                    Enter a search query above
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-8">
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <i class="fas fa-users me-2"></i> Active Users
+                            </div>
+                            <div class="card-body" id="active-users-list">
+                                Loading users...
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <i class="fas fa-user-cog me-2"></i> User Management
+                            </div>
+                            <div class="card-body" id="user-management">
+                                Select a user to manage
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Moderation Tab -->
+            <div class="tab-pane fade" id="moderation" role="tabpanel">
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="card mb-4">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <span><i class="fas fa-shield-alt me-2"></i> Moderation Logs</span>
+                                <button class="btn btn-sm btn-outline-secondary" id="refresh-mod-logs">
+                                    <i class="fas fa-sync-alt"></i> Refresh
+                                </button>
+                            </div>
+                            <div class="card-body" id="moderation-logs">
+                                Loading moderation logs...
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <i class="fas fa-gavel me-2"></i> Moderation Tools
+                            </div>
+                            <div class="card-body">
+                                <div class="d-grid gap-2">
+                                    <button class="btn btn-warning" id="mod-lockdown">
+                                        <i class="fas fa-lock me-2"></i> Toggle Lockdown
+                                    </button>
+                                    <button class="btn btn-danger" id="mod-purge">
+                                        <i class="fas fa-trash me-2"></i> Purge Messages
+                                    </button>
+                                    <button class="btn btn-secondary" id="mod-mute">
+                                        <i class="fas fa-volume-mute me-2"></i> Mute User
+                                    </button>
+                                    <button class="btn btn-info" id="mod-warn">
+                                        <i class="fas fa-exclamation-triangle me-2"></i> Warn User
+                                    </button>
+                                    <button class="btn btn-primary" id="mod-ban">
+                                        <i class="fas fa-ban me-2"></i> Ban User
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Analytics Tab -->
+            <div class="tab-pane fade" id="analytics" role="tabpanel">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <i class="fas fa-chart-pie me-2"></i> Persona Usage
+                            </div>
+                            <div class="card-body">
+                                <canvas id="personaChart" height="250"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <i class="fas fa-chart-line me-2"></i> Message Activity
+                            </div>
+                            <div class="card-body">
+                                <canvas id="messageChart" height="250"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-12">
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <i class="fas fa-user-check me-2"></i> User Engagement
+                            </div>
+                            <div class="card-body">
+                                <canvas id="engagementChart" height="200"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Live Chat Tab -->
+            <div class="tab-pane fade" id="livechat" role="tabpanel">
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <i class="fas fa-comments me-2"></i> Active Channels
+                            </div>
+                            <div class="card-body">
+                                <div id="active-channels" class="list-group">
+                                    Loading channels...
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-8">
+                        <div class="card mb-4">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <span id="chat-channel-name"><i class="fas fa-hashtag me-2"></i> Select a channel</span>
+                                <div class="dropdown">
+                                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                        <i class="fas fa-cog"></i>
+                                    </button>
+                                    <ul class="dropdown-menu dropdown-menu-end">
+                                        <li><a class="dropdown-item" href="#" id="refresh-chat"><i class="fas fa-sync-alt me-2"></i>Refresh</a></li>
+                                        <li><a class="dropdown-item" href="#" id="export-chat"><i class="fas fa-file-export me-2"></i>Export Chat</a></li>
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li><a class="dropdown-item" href="#" id="clear-chat"><i class="fas fa-trash me-2"></i>Clear Chat</a></li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <div class="card-body" style="height: 400px; overflow-y: auto;">
+                                <div id="chat-messages">
+                                    Select a channel to view messages
+                                </div>
+                            </div>
+                            <div class="card-footer">
+                                <form id="send-message-form">
+                                    <div class="input-group">
+                                        <input type="text" class="form-control" id="message-input" placeholder="Type a message..." disabled>
+                                        <button class="btn btn-primary" type="submit" id="send-message-btn" disabled>
+                                            <i class="fas fa-paper-plane"></i>
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Scheduled Tab -->
+            <div class="tab-pane fade" id="scheduled" role="tabpanel">
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="card mb-4">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <span><i class="fas fa-calendar-alt me-2"></i> Scheduled Tasks</span>
+                                <button class="btn btn-sm btn-primary" id="add-scheduled-task">
+                                    <i class="fas fa-plus"></i> New Task
+                                </button>
+                            </div>
+                            <div class="card-body" id="scheduled-tasks-list">
+                                Loading scheduled tasks...
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <i class="fas fa-plus-circle me-2"></i> Create Task
+                            </div>
+                            <div class="card-body">
+                                <form id="create-task-form">
+                                    <div class="mb-3">
+                                        <label class="form-label">Task Type</label>
+                                        <select class="form-select" name="taskType" required>
+                                            <option value="announcement">Announcement</option>
+                                            <option value="status">Status Change</option>
+                                            <option value="reminder">Reminder</option>
+                                            <option value="custom">Custom Command</option>
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Target Channel/Server</label>
+                                        <select class="form-select" name="taskTarget" required>
+                                            <option value="">Loading targets...</option>
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Date & Time</label>
+                                        <input type="datetime-local" class="form-control" name="taskDateTime" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Content</label>
+                                        <textarea class="form-control" name="taskContent" rows="3" placeholder="Message content or command..." required></textarea>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary">Schedule Task</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Settings Tab -->
+            <div class="tab-pane fade" id="settings" role="tabpanel">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <i class="fas fa-cog me-2"></i> Bot Settings
+                            </div>
+                            <div class="card-body">
+                                <form id="bot-settings-form">
+                                    <div class="mb-3">
+                                        <label class="form-label">Default Persona Mode</label>
+                                        <select class="form-select" name="defaultPersona">
+                                            <option value="">Loading personas...</option>
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Bot Status Message</label>
+                                        <input type="text" class="form-control" name="statusMessage" placeholder="Playing with humans...">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Status Type</label>
+                                        <select class="form-select" name="statusType">
+                                            <option value="playing">Playing</option>
+                                            <option value="listening">Listening to</option>
+                                            <option value="watching">Watching</option>
+                                            <option value="competing">Competing in</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-check form-switch mb-3">
+                                        <input class="form-check-input" type="checkbox" id="randomStatusSwitch" name="randomStatus">
+                                        <label class="form-check-label" for="randomStatusSwitch">Enable Random Status Rotation</label>
+                                    </div>
+                                    <hr>
+                                    <div class="form-check form-switch mb-3">
+                                        <input class="form-check-input" type="checkbox" id="websearchSwitch" name="websearch">
+                                        <label class="form-check-label" for="websearchSwitch">Enable Web Search</label>
+                                    </div>
+                                    <div class="form-check form-switch mb-3">
+                                        <input class="form-check-input" type="checkbox" id="imagerecogSwitch" name="imagerecog">
+                                        <label class="form-check-label" for="imagerecogSwitch">Enable Image Recognition</label>
+                                    </div>
+                                    <div class="form-check form-switch mb-3">
+                                        <input class="form-check-input" type="checkbox" id="reminderSwitch" name="reminders">
+                                        <label class="form-check-label" for="reminderSwitch">Enable Random Reminders</label>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary">Save Settings</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <i class="fas fa-sliders-h me-2"></i> AI Configuration
+                            </div>
+                            <div class="card-body">
+                                <form id="ai-settings-form">
+                                    <div class="mb-3">
+                                        <label class="form-label">LLM Model</label>
+                                        <select class="form-select" name="llmModel">
+                                            <option value="gemma3:4b">Gemma 3:4b</option>
+                                            <option value="llama3:8b">Llama 3:8b</option>
+                                            <option value="mistral:7b">Mistral 7b</option>
+                                            <option value="neural-chat:7b">Neural Chat 7b</option>
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Temperature (Creativity: 0.0-2.0)</label>
+                                        <input type="range" class="form-range" min="0" max="2" step="0.1" name="temperature" value="0.7" id="temperatureRange">
+                                        <div class="d-flex justify-content-between">
+                                            <small>More Focused</small>
+                                            <small id="temperatureValue">0.7</small>
+                                            <small>More Creative</small>
+                                        </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Max Response Length</label>
+                                        <select class="form-select" name="maxLength">
+                                            <option value="256">Short (256 tokens)</option>
+                                            <option value="512">Medium (512 tokens)</option>
+                                            <option value="1024" selected>Standard (1024 tokens)</option>
+                                            <option value="2048">Long (2048 tokens)</option>
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Context Window Size</label>
+                                        <select class="form-select" name="contextSize">
+                                            <option value="4">Small (4 messages)</option>
+                                            <option value="8" selected>Medium (8 messages)</option>
+                                            <option value="16">Large (16 messages)</option>
+                                            <option value="32">Extra Large (32 messages)</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-check form-switch mb-3">
+                                        <input class="form-check-input" type="checkbox" id="learningSwitch" name="learning" checked>
+                                        <label class="form-check-label" for="learningSwitch">Enable Learning From Users</label>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary">Save AI Configuration</button>
+                                </form>
+                            </div>
+                        </div>
+                        
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <i class="fas fa-database me-2"></i> Data Management
+                            </div>
+                            <div class="card-body">
+                                <div class="d-grid gap-2">
+                                    <button class="btn btn-warning" id="export-data-btn">
+                                        <i class="fas fa-file-export me-2"></i> Export All Data
+                                    </button>
+                                    <button class="btn btn-info" id="backup-data-btn">
+                                        <i class="fas fa-save me-2"></i> Create Backup
+                                    </button>
+                                    <button class="btn btn-danger" id="clear-data-btn">
+                                        <i class="fas fa-trash me-2"></i> Clear All Data
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
-      </div>
-      <div class="tab-pane fade" id="analytics" role="tabpanel">
-        <div class="card mb-4">
-          <div class="card-header bg-info text-white"><i class="fas fa-chart-bar"></i> Analytics</div>
-          <div class="card-body">
-            <div id="analytics-summary" class="mb-2">Loading analytics...</div>
-            <canvas id="analyticsChart" height="100"></canvas>
-          </div>
+    </div>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <div class="row">
+                <div class="col-md-12">
+                    <p>Yumi Sugoi Bot Dashboard &copy; 2025 | <a href="https://github.com/Diabloxx/Yumi-Sugoi" target="_blank">GitHub</a></p>
+                    <p><small>Version 1.4.1 | Made with ❤️ by the Yumi Team</small></p>
+                </div>
+            </div>
         </div>
-      </div>
-      <div class="tab-pane fade" id="auditlog" role="tabpanel">
-        <div class="card mb-4">
-          <div class="card-header bg-secondary text-white"><i class="fas fa-clipboard-list"></i> Audit Logs</div>
-          <div class="card-body">
-            <button class="btn btn-secondary mb-2" id="refresh-audit-logs">Refresh Audit Logs</button>
-            <ul id="audit-logs" class="list-group mb-2"></ul>
-            <div class="alert alert-info">Audit log entries will appear here.</div>
-          </div>
+    </footer>
+
+    <!-- Modals -->
+    <!-- Announcement Modal -->
+    <div class="modal fade" id="announcementModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Send Announcement</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="announcement-form">
+                        <div class="mb-3">
+                            <label class="form-label">Target Server</label>
+                            <select class="form-select" name="announcementServer" required>
+                                <option value="">Loading servers...</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Target Channel</label>
+                            <select class="form-select" name="announcementChannel" required>
+                                <option value="">Select a server first</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Announcement Content</label>
+                            <textarea class="form-control" name="announcementContent" rows="4" required></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="send-announcement-btn">Send Announcement</button>
+                </div>
+            </div>
         </div>
-      </div>
-      <div class="tab-pane fade" id="chatlogs" role="tabpanel">
-        <div class="card mb-4">
-          <div class="card-header bg-dark text-white"><i class="fas fa-comments"></i> Chat Logs (Moderation Review)</div>
-          <div class="card-body">
-            <button class="btn btn-dark mb-2" id="refresh-chat-logs">Refresh Chat Logs</button>
-            <div id="chat-logs" style="max-height: 300px; overflow-y: auto; background:#f1f5f9;">Loading chat logs...</div>
-            <div class="alert alert-info">Review chat logs for abusive or inappropriate use of the bot.</div>
+    </div>
+
+    <!-- Status Change Modal -->
+    <div class="modal fade" id="statusModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Change Bot Status</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="status-form">
+                        <div class="mb-3">
+                            <label class="form-label">Status Type</label>
+                            <select class="form-select" name="statusType">
+                                <option value="online">Online</option>
+                                <option value="idle">Idle</option>
+                                <option value="dnd">Do Not Disturb</option>
+                                <option value="invisible">Invisible</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Activity Type</label>
+                            <select class="form-select" name="activityType">
+                                <option value="playing">Playing</option>
+                                <option value="listening">Listening to</option>
+                                <option value="watching">Watching</option>
+                                <option value="competing">Competing in</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Activity Content</label>
+                            <input type="text" class="form-control" name="activityContent" placeholder="e.g., with humans">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="set-status-btn">Set Status</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Server Details -->
+    <div class="modal fade" id="serverDetailsModal" tabindex="-1">
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Server Details</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <!-- Content will be dynamically inserted -->
           </div>
         </div>
       </div>
     </div>
-</div>
-<footer class="text-center text-muted py-3 bg-white">
-    <small>Yumi Sugoi &copy; 2025 | <a href="https://github.com/Diabloxx/Yumi-Sugoi" target="_blank" class="text-info">GitHub</a></small>
-</footer>
-<!-- Bootstrap JS -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="/static/dashboard.js"></script>
+
+    <!-- Modal for Server Analytics -->
+    <div class="modal fade" id="serverAnalyticsModal" tabindex="-1">
+      <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Server Analytics</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <!-- Content will be dynamically inserted -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal for Confirm Leave Server -->
+    <div class="modal fade" id="confirmLeaveModal" tabindex="-1">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Confirm Action</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <!-- Content will be dynamically inserted -->
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-danger">Leave Server</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast Container for Notifications -->
+    <div class="toast-container position-fixed bottom-0 end-0 p-3"></div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Dashboard JS -->
+    <script src="/static/dashboard.js"></script>
+    
+    <!-- Add connection status display -->
+    <div id="connection-status" class="disconnected">Connection: Disconnected</div>
+
+    <!-- Add some CSS for connection status -->
+    <style>
+        #connection-status {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 10px;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        #connection-status.connected {
+            background-color: #4CAF50;
+            color: white;
+        }
+        #connection-status.disconnected {
+            background-color: #f44336;
+            color: white;
+        }
+    </style>
 </body>
 </html>

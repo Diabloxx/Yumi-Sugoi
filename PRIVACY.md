@@ -1,93 +1,148 @@
 # 🔐 Yumi Sugoi - Privacy Policy
 
+**Last Updated:** 24.05.2025 (05.24.2025)  
 **Effective Date:** 24.05.2025 (05.24.2025)
 
-This Privacy Policy outlines how Yumi Sugoi ("Yumi", "the Bot", "we", or "our") collects, stores, and uses information when users interact with the bot on Discord or affiliated platforms.
+This Privacy Policy outlines how Yumi Sugoi ("Yumi", "the Bot", "we", "our") collects, uses, and protects user information across all our services, including the Discord bot and web dashboard.
 
 ---
 
 ## 1. Information We Collect
 
-Yumi may collect the following data types when users interact with her:
+### 1.1 Essential Data
+- **Discord User Information:**
+  - Username and Discord ID
+  - Server-specific nicknames
+  - Role information
+- **Interaction Data:**
+  - Command usage
+  - Chat history (for context)
+  - Persona preferences
 
-- **Usernames and Discord IDs** (for personalization and moderation)
-- **Preferred names or nicknames** (for character interaction)
-- **Chat history** (for short-term context and memory)
-- **Bot command usage** (to improve functionality and behavior)
-- **Server and channel IDs** (to support per-server customization)
+### 1.2 Optional Data
+- **Custom Settings:**
+  - Preferred names
+  - Personal facts (via !yumi_fact)
+  - Channel-specific preferences
+- **Analytics Data:**
+  - Usage patterns
+  - Command frequency
+  - Response times
 
-We do **not** collect, process, or store:
-- Real names, addresses, or other personally identifiable information (PII)
-- Passwords or payment information
+### 1.3 Dashboard Data
+- **Session Information:**
+  - Login timestamps
+  - Page access logs
+  - Action history
+- **Server Management:**
+  - Configuration changes
+  - Moderation actions
+  - Scheduled tasks
 
----
-
-## 2. How We Use This Information
-
-Collected information is used to:
-- Personalize Yumi's responses
-- Remember user-specific preferences and persona modes
-- Maintain consistency in ongoing interactions
-- Enhance user experience and optimize bot behavior
-- Prevent abuse and enforce bot usage rules
-
----
-
-## 3. Data Retention
-
-- Data is stored for as long as needed to maintain functionality.
-- Users can request their stored data to be deleted by contacting the bot admins.
-- Temporary interaction history may be stored in memory or logs for a limited time.
-
----
-
-## 4. Sharing and Disclosure
-
-We do **not** sell or share user data with third parties.
-
-Your data is never shared outside of:
-- The Yumi Sugoi development and moderation team
-- Any integrated APIs (such as OpenAI or web search) which may receive anonymized input/output
+We explicitly DO NOT collect:
+- Personal identification details
+- Payment information
+- Private messages outside of bot interactions
+- Information from non-bot channels
 
 ---
 
-## 5. Cookies and Tracking
+## 2. Data Processing
 
-Yumi does **not** use cookies or web-based tracking technologies.
+### 2.1 Local Processing
+All AI interactions are processed locally using Ollama, ensuring:
+- No data sent to external AI services
+- Complete privacy of conversations
+- Server-side data containment
+
+### 2.2 Data Storage
+- Chat logs: Temporary storage for context
+- User preferences: Persistent but minimal
+- Analytics: Aggregated and anonymized
 
 ---
 
-## 6. User Rights
+## 3. Data Usage
+
+We use collected information to:
+- Personalize bot interactions
+- Maintain conversation context
+- Improve bot functionality
+- Generate analytics insights
+- Support moderation efforts
+
+---
+
+## 4. Data Protection
+
+### 4.1 Security Measures
+- Encrypted storage
+- Regular security audits
+- Access controls
+- Backup protocols
+
+### 4.2 Dashboard Security
+- Secure authentication
+- Session management
+- Role-based access
+- Activity logging
+
+---
+
+## 5. User Rights
 
 You have the right to:
-- Know what data Yumi stores about you
-- Request correction or deletion of your data
-- Opt out of persistent personalization features (by using relevant commands or contacting support)
+- Access your stored data
+- Request data deletion
+- Opt out of analytics
+- Modify stored preferences
+- Export your data
 
 ---
 
-## 7. Children's Privacy
+## 6. Data Retention
 
-Yumi is not intended for use by individuals under the age of **13**. Users must be **18+** to access mature or NSFW-themed persona modes.
-
----
-
-## 8. Security
-
-We take reasonable measures to protect user data from unauthorized access or misuse. However, no system can guarantee absolute security.
+- **Chat History:** 30 days
+- **Command Logs:** 90 days
+- **Analytics Data:** 12 months
+- **User Preferences:** Until deletion request
 
 ---
 
-## 9. Changes to This Policy
+## 7. Third-Party Services
 
-This Privacy Policy may be updated periodically. Continued use of the bot after any changes implies acceptance of the revised terms.
+We integrate with:
+- Discord API (essential)
+- Ollama LLM (local processing)
+- Web search (optional fallback)
+
+No data is shared with external services except as required for basic functionality.
 
 ---
 
-## 10. Contact
+## 8. Children's Privacy
 
-If you have questions or requests regarding this policy, please contact an admin in the official Yumi Sugoi Discord server.
+- Age requirement: 13+ for basic use
+- Adult content restricted to 18+
+- No intentional collection of minor data
 
 ---
 
-**Your privacy matters. Thank you for using Yumi Sugoi responsibly.**
+## 9. Updates to Policy
+
+- Users notified of significant changes
+- Change log maintained
+- 30-day notice for major updates
+
+---
+
+## 10. Contact Us
+
+For privacy concerns:
+- Discord: Official server admins
+- Email: [Contact form in dashboard]
+- Response time: Within 48 hours
+
+---
+
+By using Yumi Sugoi, you agree to this privacy policy. For questions or concerns, please contact our administrative team.

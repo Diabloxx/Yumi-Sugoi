@@ -1,109 +1,114 @@
 # Yumi Sugoi Discord AI Chatbot
 
-Yumi Sugoi is a modular, multi-persona Discord AI chatbot powered by Ollama and self-learning Q&A. She supports per-user and per-server persona modes, persistent memory, and a modern Discord experience.
+Yumi Sugoi is a modern, feature-rich Discord AI chatbot powered by Ollama LLM and equipped with multiple personas, self-learning capabilities, persistent memory, and a beautiful web dashboard. Perfect for communities seeking an engaging, customizable AI companion.
 
-## Features
-- Multiple persona modes (normal, mistress, bdsm, girlfriend, wifey, tsundere, shy, and more)
-- Per-user and per-server mode switching (with persistence)
-- Self-learning Q&A (teachable by users)
-- Local LLM integration with Ollama (using gemma3:4b by default)
-- Persistent per-user name memory
-- Human-like typing and chat
-- Discord slash commands and admin support
-- Random DM reminders
-- Rotating Discord status
-- Image captioning (BLIP)
-- Web search fallback
-- Modern white UI dashboard for administration
+## Core Features
+- **Advanced AI Chat:** Natural, context-aware conversations powered by local Ollama LLM
+- **Multi-Persona System:** Rich selection of personality modes with custom persona support
+- **Modern Dashboard:** Beautiful web interface for administration and monitoring
+- **Self-Learning:** Learns from user interactions and feedback
+- **Privacy-Focused:** Local LLM processing with Ollama, no data sent to external APIs
+- **Persistent Memory:** Remembers user preferences, facts, and conversation context
+- **Automatic User Fact Memory:** Yumi now automatically extracts and remembers user facts (like name, location, preferences) from natural language, without explicit commands
+- **Per-User, Per-Channel Context:** Maintains separate conversation history and memory for each user in each channel or DM, supporting many users in parallel
 
-## New Features (2025)
+## Key Features (2025)
 
-- **Ollama Integration:** Use your own local network Ollama instance (gemma3:4b model by default) for complete privacy control and no usage costs.
-- **Configurable LLM Settings:** Customize model, temperature, and other parameters via environment variables.
-- **Admin Hot-Reload:** `!yumi_reload` lets admins reload bot modules and persistent data without restarting the bot.
-- **Advanced Persona System:** Create, edit, and activate custom personas. Set personas per channel. Switch between built-in and user personas.
-- **Channel Personas:** Assign a persona to a specific channel for unique vibes.
-- **Scheduled Announcements:** Use `!yumi_announce` to schedule reminders/announcements in any channel.
-- **Long-Term User Memory:** Store and recall user facts/preferences with `!yumi_fact` and `!yumi_fact_recall`.
-- **XP/Leveling System:** Earn XP for chatting, level up, and check your progress with `!yumi_level`.
-- **Fun/Utility Commands:** Polls (`!yumi_poll`), suggestion box (`!yumi_suggest`), meme generator (`!yumi_meme`), and more.
-- **Media/AI Features:** Placeholders for AI art (`!yumi_aiart`) and TTS/voice (`!yumi_tts`).
-- **Advanced Moderation:** Auto-moderation, message delete/member join logging to #yumi-logs.
-- **Web Dashboard:** Live chat console, user management, scheduled tasks, persona management, server controls, and moderation logs with modern white UI.
+### AI & Chat
+- **Local LLM Processing:** Powered by Ollama (default: gemma3:4b) for complete privacy
+- **Natural Conversations:** Human-like typing indicators and response timing
+- **Multi-Context Memory:** Separate conversation context per user and channel
+- **Smart Responses:** Context-aware replies with personality consistency
+- **Image Understanding:** BLIP-powered image captioning
+- **Web Search Fallback:** Handles unknown topics via web search integration
+
+### Personalization
+- **Dynamic Personas:** Switch between built-in and custom personality modes
+- **Channel-Specific Personas:** Set unique personas for different channels
+- **User Memory:** Remembers names, preferences, and user-taught facts
+- **Automatic Fact Extraction:** Yumi can now learn facts about users from natural conversation (e.g., "my name is...", "I live in...") and recall them in future chats
+- **XP System:** Engage users with chat-based leveling and rewards
+- **Custom Commands:** Create and manage server-specific commands
+
+### Administration
+- **Modern Dashboard:**
+  - Real-time chat monitoring and control
+  - User management and analytics
+  - Server settings and persona configuration
+  - Moderation tools and logs
+  - Task scheduling and announcements
+  - Beautiful white UI with responsive design
+
+### Moderation
+- **Smart Lockdown:** Channel-specific response restrictions
+- **Auto-Moderation:** Content filtering and user management
+- **Audit Logging:** Comprehensive activity tracking
+- **Admin Commands:** Powerful moderation and management tools
 
 ## Requirements
 - Python 3.9+
-- **discord.py 2.x+** (for slash command support)
-- Flask, python-dotenv, and other dependencies in requirements.txt
+- Ollama (running locally or on network)
+- discord.py 2.x+
+- Additional dependencies in requirements.txt
 
-> **Note:** Slash commands (e.g. `/yumi_mode`) are supported natively using discord.py 2.x+ and do not require any extra libraries.
-
-## Project Structure
-
-```
-Yumi-Sugoi/
-│   README.md
-│   requirements.txt
-│   .gitignore
-│   .env                  # Environment variables (DISCORD_TOKEN, Ollama settings)
-│   .env.example          # Example environment variables
-│   run_bot.py            # Main entry point
-│   CHANGELOG.md          # Version history
-│
-├── bot_core/
-│   ├── __init__.py
-│   ├── main.py           # Main bot logic
-│   ├── persona.py        # Persona logic
-│   ├── llm.py            # LLM/Ollama integration
-│   ├── history.py        # Conversation history
-│   ├── feedback.py       # Feedback and learning
-│   ├── websearch.py      # Web search fallback
-│   ├── image_caption.py  # Image captioning
-│   ├── web_dashboard.py  # Web dashboard backend
-│   ├── static/           # Static assets for dashboard
-│   └── templates/        # HTML templates for dashboard
-│
-├── datasets/
-│   ├── chatbot_dataset.json   # Q&A pairs (self-learning)
-│   ├── user_facts.json        # User long-term memory
-│   ├── custom_personas.json   # Custom persona data
-│   ├── user_xp.json           # User XP/leveling data
-│   ├── ollama_log.txt         # Log of prompts and responses
-```
-
-## Setup
+## Quick Setup
 1. Install dependencies:
-   ```
+   ```powershell
    pip install -r requirements.txt
    ```
-2. Create a `.env` file with your Discord token and Ollama settings:
-   ```
+
+2. Set up your .env file:
+   ```ini
    DISCORD_TOKEN=your_discord_token_here
-   OLLAMA_URL=http://10.0.0.28:11434/api/generate
+   OLLAMA_URL=http://localhost:11434/api/generate
    OLLAMA_MODEL=gemma3:4b
    OLLAMA_TEMPERATURE=0.7
    OLLAMA_NUM_PREDICT=256
    ```
+
 3. Run the bot:
-   ```
+   ```powershell
    python run_bot.py
    ```
-4. Access the web dashboard at http://localhost:5000
 
-## Usage Example
+4. Access dashboard: http://localhost:5000
 
-- Change persona: `!yumi_mode <mode>` or `/yumi_mode <mode>`
-- Create persona: `!yumi_persona_create <name> <description>`
-- Set channel persona: `!yumi_channel_persona <name>`
-- Schedule announcement: `!yumi_announce YYYY-MM-DD HH:MM <message>`
-- Store fact: `!yumi_fact <something>`
-- Recall fact: `!yumi_fact_recall`
-- Check level: `!yumi_level`
-- Admin reload: `!yumi_reload`
+## Key Commands
 
-> **Tip:** You can use both traditional prefix commands (e.g. `!yumi_mode`) and Discord slash commands (e.g. `/yumi_mode`) with this bot.
+### General
+- `/help` - Show command list
+- `/yumi_mode <mode>` - Change persona mode
+- `/yumi_level` - Check your XP level
+- `/yumi_fact <text>` - Teach Yumi a fact (manual, but now also learns automatically)
+- `/yumi_fact_recall` - Recall stored facts
 
-See `!yumi_help` for more commands and details.
+### Admin
+- `/yumi_reload` - Hot-reload bot modules
+- `/yumi_lockdown` - Restrict responses to specific channel
+- `/yumi_announce` - Schedule announcements
+- `/yumi_persona_create` - Create custom persona
+
+## Project Structure
+```
+Yumi-Sugoi/
+├── bot_core/           # Core bot functionality
+│   ├── main.py        # Main bot logic
+│   ├── llm.py         # Ollama LLM integration
+│   ├── persona.py     # Persona system
+│   ├── web_dashboard/ # Dashboard components
+│   └── ...
+├── datasets/          # Persistent data storage (user_facts.json, convo_history.json)
+└── ...
+```
+
+## Memory & Context System (2025)
+- Yumi now automatically extracts user facts (name, location, preferences, etc.) from natural language and stores them per user.
+- Conversation history and user facts are injected into the LLM prompt for more natural, context-aware responses.
+- Memory is tracked per user and per channel/DM, supporting many users in parallel.
+- All memory and context features work for both general and private conversations.
 
 ## Contributing
-Pull requests are welcome! Please keep code modular and well-documented.
+Issues and PRs welcome! Check our contribution guidelines in CONTRIBUTING.md.
+
+## Support
+Join our Discord server for support, updates, and community discussion.

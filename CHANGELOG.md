@@ -1,5 +1,34 @@
 # Yumi Sugoi Changelog
 
+## [v1.4.2] - 2025-05-24
+### Added
+- **Enhanced Dashboard UI:**
+  - New context menu for server management
+  - Detailed server analytics modals
+  - Real-time toast notifications
+  - Interactive charts for command usage and message volume
+  - Smooth animations and transitions
+- **Improved Error Handling:**
+  - Fallback data for failed API requests
+  - Graceful degradation for offline features
+  - User-friendly error messages
+- **Better User Experience:**
+  - Tab-based navigation system
+  - Loading states for async operations
+  - Real-time data updates
+
+### Changed
+- Refactored dashboard JavaScript for better maintainability
+- Enhanced styling with modern CSS features
+- Improved responsive design for mobile devices
+- Updated server management interface with more options
+
+### Fixed
+- Server analytics chart rendering issues
+- Memory leak in WebSocket connections
+- Toast notification stacking problems
+- Modal backdrop removal on close
+
 ## [v1.4.1] - 2025-05-24
 ### Fixed
 - Fixed `!yumi_lockdown` command that was incorrectly changing channel permissions. Now it correctly only restricts Yumi to respond in the locked channel without preventing users from speaking.

@@ -9,18 +9,28 @@ OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "gemma3:4b")
 OLLAMA_TEMPERATURE = float(os.getenv("OLLAMA_TEMPERATURE", "0.7"))
 OLLAMA_NUM_PREDICT = int(os.getenv("OLLAMA_NUM_PREDICT", "256"))
 
-def generate_llm_response(user_message, qa_pairs=None, history=None, temperature=None, num_predict=None):
+def generate_llm_response(user_message, qa_pairs=None, history=None, temperature=None, num_predict=None, user_facts=None, convo_history=None):
     if qa_pairs is None:
         qa_pairs = {}
     system_prompt = get_persona_prompt()
     context = ""
+    # Add user facts to context
+    if user_facts:
+        facts_str = ", ".join(f"{k.capitalize()}: {v}" for k, v in user_facts.items())
+        context += f"User facts: {facts_str}\n"
+    # Add Q&A pairs
     if qa_pairs:
         for q, a in list(qa_pairs.items())[:5]:
             context += f"Q: {q}\nA: {a}\n"
-    if history:
+    # Add conversation history
+    if convo_history:
+        for h in convo_history:
+            context += f"User: {h['user']}\nYumi: {h['bot']}\n"
+    elif history:
         for h in history:
             context += f"User: {h['user']}\nYumi: {h['bot']}\n"
     prompt = f"{system_prompt}\n{context}\nUser: {user_message}\nYumi:"
+    print(f"[DEBUG] LLM prompt:\n{prompt}\n{'-'*40}")
     try:
         payload = {
             "model": OLLAMA_MODEL,

@@ -22,13 +22,33 @@
 - ✅ Fixed environment configuration issues
 - ✅ Fixed `!yumi_lockdown` command to not change channel permissions
 - ✅ Fixed issue with lockdown settings not persisting after bot restart
+- ✅ Fixed syntax error in dashboard statistics loading function
+- ✅ Fixed missing implementation of `!yumi_reload` command
+- ✅ Fixed incorrect curly brace syntax in Python code
+
+### Memory & Context System (May 2025)
+- ✅ Implemented automatic extraction of user facts (name, location, preferences, etc.) from natural language in main.py
+- ✅ User facts are now stored as dictionaries in datasets/user_facts.json
+- ✅ Conversation memory is tracked per user and per channel/DM in datasets/convo_history.json
+- ✅ Injected user facts and recent conversation history into LLM prompt for more natural, context-aware responses
+- ✅ All memory and context features work for multiple users in parallel
+- ✅ Added debug logging for fact extraction and prompt construction
+- ✅ Fixed all Python syntax errors in main.py and bot startup logic
+- ✅ Verified that Yumi now recalls facts and conversation context as intended
 
 ### Documentation
-- ✅ Updated README.md with Ollama integration details
+- ✅ Updated README.md with new memory and context system details
 - ✅ Updated CHANGELOG.md with v1.4.0 and v1.4.1 changes
 - ✅ Documented environment variables for Ollama
 - ✅ Added dashboard URL information to setup instructions
 - ✅ Updated admin tools documentation to clarify lockdown behavior
+
+### Recent Additions (May 25)
+- ✅ Implemented hot-reload functionality with `!yumi_reload` command
+- ✅ Added proper module reloading for all core components
+- ✅ Added persistence reloading for conversation history and feedback
+- ✅ Improved dashboard statistics loading with proper Python syntax
+- ✅ Added error handling and feedback for reload operations
 
 ## Next Steps
 1. Test the Live Chat functionality with real servers
@@ -36,9 +56,13 @@
 3. Test the Ollama integration with the gemma3:4b model
 4. Consider adding analytics data visualization
 5. Test the fixed lockdown feature to ensure it works as expected
+6. Test the new hot-reload functionality in production environment
+7. Monitor dashboard statistics loading performance
 
 ## Known Issues
-None - all identified issues have been fixed.
+No critical issues - recent fixes have addressed all known problems.
+- Minor: Consider optimizing dashboard statistics loading for large datasets
+- Minor: Could add progress indicators for hot-reload operations
 
 ---
-Last updated: May 24, 2025
+Last updated: May 25, 2025

@@ -1,18 +1,50 @@
 import os
-from . import llm, persona, history, feedback, websearch, image_caption
-from .web_dashboard import start_dashboard_thread
+import json
+import random
+import asyncio
+import aiohttp
 import discord
 from discord.ext import commands
 from discord import app_commands
-import asyncio
-import random
-import re
-import json
-import itertools
 from collections import defaultdict
-import datetime
+from datetime import datetime, timedelta
 import threading
+import traceback
+import logging
+import sys
 import importlib
+import re
+
+# Local imports
+from . import history
+from . import feedback
+from . import image_caption
+from . import llm
+from .feedback import (
+    save_feedback_scores, 
+    save_user_feedback, 
+    reset_feedback, 
+    export_feedback, 
+    export_user_feedback, 
+    get_user_feedback_stats,
+    handle_response_feedback
+)
+from .websearch import duckduckgo_search_and_summarize
+from .image_caption import caption_image
+
+# --- Load initial state ---
+# Load conversation history
+CONVO_HISTORY = history.load_convo_history()
+
+# Load feedback data
+feedback_scores, user_feedback = feedback.load_feedback()
+
+# Load AI models
+BLIP_READY, blip_processor, blip_model = image_caption.load_blip()
+AI_READY, ai_tokenizer, ai_model = llm.load_hf_model()
+
+# Track users Yumi has interacted with
+INTERACTED_USERS = set()
 
 # --- Default Persona Modes ---
 PERSONA_MODES = [
@@ -142,6 +174,8 @@ if not TOKEN:
 intents = discord.Intents.default()
 intents.messages = True
 intents.message_content = True
+intents.guilds = True
+intents.members = True
 
 class YumiBot(commands.Bot):
     async def setup_hook(self):
@@ -419,6 +453,7 @@ async def yumi_mode(ctx, mode: str):
         await ctx.send(f"Invalid mode. Available modes: {', '.join(PERSONA_MODES)}")
 
 # Import and initialize modules
+from collections import deque
 CONVO_HISTORY = history.load_convo_history()
 feedback_scores, user_feedback = feedback.load_feedback()
 BLIP_READY, blip_processor, blip_model = image_caption.load_blip()
@@ -539,6 +574,32 @@ async def yumi_reminder_task():
 
 @bot.event
 async def on_ready():
+    """Bot startup event handler"""
+    print(f"Bot is ready! Logged in as {bot.user.name}")
+    load_dashboard_stats()  # Load existing stats
+    bot.loop.create_task(update_server_stats())  # Start server stats tracking
+    bot.loop.create_task(cleanup_old_stats())  # Start stats cleanup
+    await setup_tasks()
+
+@bot.event
+async def on_message(message):
+    """Message event handler"""
+    if message.author == bot.user:
+        return
+    
+    # Update dashboard stats
+    await update_message_stats(message)
+    
+    # Process commands
+    await bot.process_commands(message)
+
+@bot.event
+async def on_command_completion(ctx):
+    """Command completion event handler"""
+    await update_command_stats(ctx)
+
+@bot.event
+async def on_ready():
     print(f'Logged in as {bot.user}')
     print("Yumi Sugoi modular bot is ready!")
     # Set initial status to current mode immediately
@@ -570,9 +631,10 @@ async def on_ready():
         await bot.change_presence(status=discord.Status.online, activity=activity)
     except Exception:
         pass
-    bot.loop.create_task(yumi_reminder_task())
-    bot.loop.create_task(rotate_status_task())
-    bot.loop.create_task(scheduled_announcement_task())
+    
+    # Initialize background tasks
+    await setup_tasks()
+    print("[Startup] Background tasks initialized")
     print(f"Yumi is online with mode: {mode} and status: {status}")
 
 def set_mode_for_context(message):
@@ -623,32 +685,6 @@ async def post_changelog():
                     set_last_posted_changelog(latest)
     except Exception as e:
         print(f"[Changelog] Failed to post: {e}")
-
-@bot.command()
-@commands.check_any(commands.has_permissions(administrator=True), admin_only())
-async def yumi_post_changelog(ctx):
-    """Post the latest changelog entry to the changelog channel (only if new)."""
-    await post_changelog()
-    await ctx.send("Changelog posted (if new update found)!")
-
-# --- PER-USER CONTEXT LOGIC ---
-# Use a per-user, per-channel context key for conversation history
-USER_CHANNEL_CONTEXT = defaultdict(dict)  # {guild_id: {user_id: convo_key}}
-
-@bot.command()
-@commands.check_any(commands.has_permissions(administrator=True), admin_only())
-async def yumi_admin_tools(ctx):
-    """
-    Show available admin tools and commands for Yumi Sugoi.
-    """
-    await ctx.send(
-        "**Yumi Admin Tools:**\n"
-        "- `!yumi_lockdown` — Restrict Yumi to only respond in the current channel\n"
-        "- `!yumi_unlock` — Allow Yumi to respond in all channels again\n"
-        "- `!yumi_purge <N>` — Delete the last N messages (admin only)\n"
-        "- `!yumi_say <message>` — Make Yumi say something (admin only)\n"
-        "- `!yumi_admin_tools` — Show this help message\n"
-    )
 
 # --- LOCKDOWN COMMANDS ---
 # Reusing the LOCKED_CHANNELS defined at the top of the file - do not redefine it here
@@ -818,24 +854,30 @@ async def yumi_announce(ctx, when: str, *, message: str):
     await ctx.send(f"Announcement scheduled for {dt}.")
 
 async def scheduled_announcement_task():
-    await bot.wait_until_ready()
-    while not bot.is_closed():
-        now = datetime.datetime.utcnow()
-        to_post = []
-        for ann in list(scheduled_announcements):
-            ann_time = datetime.datetime.fromisoformat(ann['time'])
-            if now >= ann_time:
-                to_post.append(ann)
-        for ann in to_post:
-            channel = bot.get_channel(ann['channel_id'])
-            if channel:
-                try:
-                    await channel.send(f"[Scheduled Announcement]\n{ann['message']}")
-                except Exception:
-                    pass
-            scheduled_announcements.remove(ann)
-            save_json_file(SCHEDULED_ANNOUNCEMENTS_FILE, scheduled_announcements)
-        await asyncio.sleep(30)
+    await bot.wait_until_ready()    
+    while True:  # Changed from bot.is_closed() check to True
+        try:
+            now = datetime.utcnow()
+            to_post = []
+            for ann in list(scheduled_announcements):
+                ann_time = datetime.fromisoformat(ann['time'])
+                if now >= ann_time:
+                    to_post.append(ann)
+                if now >= ann_time:
+                    to_post.append(ann)
+            for ann in to_post:
+                channel = bot.get_channel(ann['channel_id'])
+                if channel:
+                    try:
+                        await channel.send(f"[Scheduled Announcement]\n{ann['message']}")
+                    except Exception as e:
+                        print(f"Error sending scheduled announcement: {e}")
+                scheduled_announcements.remove(ann)
+                save_json_file(SCHEDULED_ANNOUNCEMENTS_FILE, scheduled_announcements)
+        except Exception as e:
+            print(f"Error in scheduled announcement task: {e}")
+        finally:
+            await asyncio.sleep(30)
 
 # --- User Facts/Long-term Memory ---
 @bot.command()
@@ -891,89 +933,174 @@ def get_history_key(message):
         # DM context
         return f"user_{message.author.id}"
 
+# --- Analytics Data Storage ---
+message_count = defaultdict(int)
+command_usage = defaultdict(int)
+
+def track_message(message):
+    """Track message analytics"""
+    hour = datetime.now().hour
+    day = datetime.now().weekday()
+    
+    message_count[f"hour_{hour}"] += 1
+    message_count[f"day_{day}"] += 1
+    message_count[f"channel_{message.channel.id}"] += 1
+    message_count['total'] += 1
+
+def track_command(command_name):
+    """Track command usage"""
+    command_usage[command_name] += 1
+
 @bot.event
 async def on_message(message):
-    global LOCKED_CHANNELS
-    if message.author == bot.user:
+    if message.author.bot:
+        track_message(message)
         return
-    # --- Lockdown enforcement ---
-    # ENSURE LOCKED_CHANNELS is always a defaultdict(set) and up to date
-    if not isinstance(LOCKED_CHANNELS, defaultdict):
-        temp = defaultdict(set)
-        for gid, chans in LOCKED_CHANNELS.items():
-            temp[gid] = set(chans)
-        LOCKED_CHANNELS = temp
-    # Only enforce lockdown if there are locked channels for this guild
+    track_message(message)
     if message.guild:
-        locked = LOCKED_CHANNELS.get(message.guild.id)
-        if locked and len(locked) > 0:
-            # Only allow commands in any channel, otherwise only respond in locked channels
-            if not message.content.startswith(bot.command_prefix) and message.channel.id not in locked:
-                return  # Ignore all non-command messages in non-locked channels during lockdown
-    add_xp(message.author.id, 5)
+        guild_locked_channels = LOCKED_CHANNELS[message.guild.id]
+        if guild_locked_channels and message.channel.id not in guild_locked_channels:
+            await bot.process_commands(message)
+            return
+    current_mode = channel_personas.get(str(message.channel.id)) or get_context_mode(message)
+    await update_message_stats(message)
     ctx = await bot.get_context(message)
-    await bot.process_commands(message)
-    if ctx.valid or message.content.startswith(bot.command_prefix):
+    if ctx.valid:
+        await update_command_stats(ctx)
+        await bot.process_commands(message)
         return
     try:
-        import random, asyncio
+        user_id = str(message.author.id)
+        extract_user_facts_from_message(user_id, message.content)
+        # --- Per-user conversation memory key ---
+        if message.guild:
+            history_key = f"guild_{message.guild.id}_user_{user_id}_channel_{message.channel.id}"
+        else:
+            history_key = f"dm_user_{user_id}"
+        if history_key not in CONVO_HISTORY:
+            CONVO_HISTORY[history_key] = deque(maxlen=10)
+        channel_history = CONVO_HISTORY[history_key]
+        if is_new_topic(message.content):
+            channel_history.clear()
+            save_convo_history(CONVO_HISTORY)
+            await message.channel.send("Okay! Let's start a new topic. What would you like to talk about?")
+            return
+        channel_history.append({
+            'role': 'user',
+            'content': message.content,
+            'author': str(message.author.name)
+        })
+        save_convo_history(CONVO_HISTORY)
+        image_context = ""
+        if message.attachments and BLIP_READY:
+            for attachment in message.attachments:
+                if any(attachment.filename.lower().endswith(ext) for ext in ['.png', '.jpg', '.jpeg', '.gif', '.webp']):
+                    try:
+                        async with aiohttp.ClientSession() as session:
+                            async with session.get(attachment.url) as response:
+                                img_bytes = await response.read()
+                                caption = caption_image(blip_processor, blip_model, img_bytes)
+                                if caption:
+                                    image_context = f"\n[Attached image shows: {caption}]"
+                    except Exception as e:
+                        print(f"Error captioning image: {e}")
+        user_facts_for_llm = user_facts.get(user_id, {}) if isinstance(user_facts.get(user_id), dict) else {}
+        print(f"[DEBUG] Facts for LLM for {user_id}: {user_facts_for_llm}")
+        convo_pairs = []
+        for entry in list(channel_history)[-10:]:
+            if entry['role'] == 'user':
+                convo_pairs.append({'user': entry['content'], 'bot': ''})
+            elif entry['role'] == 'assistant' and convo_pairs:
+                convo_pairs[-1]['bot'] = entry['content']
+        convo_pairs = convo_pairs[-5:]
+        set_persona_mode(current_mode)
         async with message.channel.typing():
-            await asyncio.sleep(random.uniform(0.7, 2.0))
-            # --- Conversation memory logic ---
-            key = get_history_key(message)
-            history_deque = CONVO_HISTORY[key]
-            history = list(history_deque)
-            response = llm.generate_llm_response(message.content, qa_pairs=qa_pairs, history=history)
-            if response:
-                await message.channel.send(response)
-                history_deque.append({'user': message.content, 'bot': response})
-                save_convo_history(CONVO_HISTORY)
+            try:
+                response = yumi_sugoi_response(message.content + image_context, user_facts=user_facts_for_llm, convo_history=convo_pairs)
+                success = await handle_response_feedback(message, response)
+                if success:
+                    channel_history.append({'role': 'user', 'content': message.content, 'author': str(message.author.name)})
+                    channel_history.append({'role': 'assistant', 'content': response})
+                    save_convo_history(CONVO_HISTORY)
+            except Exception as e:
+                print(f"Error in response handler: {e}")
+                print(f"Full error: {type(e).__name__}: {str(e)}")
+                import traceback
+                traceback.print_exc()
+                await message.add_reaction('❌')
+            except Exception as e:
+                print(f"Error in message handler: {e}")
+                print(f"Full error: {type(e).__name__}: {str(e)}")
+                import traceback
+                traceback.print_exc()
+                await message.add_reaction('❌')
     except Exception as e:
-        print(f"[Yumi Response Error] {e}")
+        print(f"Error in message handler: {e}")
+        print(f"Full error: {type(e).__name__}: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        await message.add_reaction('❌')
+    await bot.process_commands(message)
 
-# --- Fun/Utility Commands ---
-@bot.command()
-async def yumi_poll(ctx, question: str, *options):
-    """Create a poll. Usage: !yumi_poll <question> <option1> <option2> ..."""
-    if len(options) < 2:
-        await ctx.send("You need at least two options.")
-        return
-    emojis = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟']
-    if len(options) > len(emojis):
-        await ctx.send("Too many options (max 10).")
-        return
-    desc = '\n'.join(f"{emojis[i]} {opt}" for i, opt in enumerate(options))
-    embed = discord.Embed(title=question, description=desc, color=discord.Color.pink())
-    poll_msg = await ctx.send(embed=embed)
-    for i in range(len(options)):
-        await poll_msg.add_reaction(emojis[i])
+@bot.event
+async def on_command(ctx):
+    """Track command invocations"""
+    track_command(ctx.command.name)
 
-@bot.command()
-async def yumi_suggest(ctx, *, suggestion: str):
-    """Submit a suggestion to the bot admin."""
-    admin_user = bot.get_user(ADMIN_USER_ID)
-    if admin_user:
-        await admin_user.send(f"Suggestion from {ctx.author}: {suggestion}")
-    await ctx.send("Suggestion sent! Thank you.")
+def start_dashboard_thread(bot_instance=None, persona_modes=None, custom_personas_data=None, get_level_func=None, get_xp_func=None):
+    """Start the dashboard in a separate thread"""
+    from .web_dashboard import create_dashboard_app
+    
+    # Initialize global variables
+    global bot, PERSONA_MODES, custom_personas, get_level, get_xp
+    if bot_instance:
+        bot = bot_instance
+    if persona_modes:
+        PERSONA_MODES = persona_modes
+    if custom_personas_data:
+        custom_personas = custom_personas_data
+    if get_level_func:
+        get_level = get_level_func
+    if get_xp_func:
+        get_xp = get_xp_func
+    
+    # Initialize message tracking if not already done
+    global message_count, command_usage
+    if 'message_count' not in globals():
+        message_count = defaultdict(int)
+    if 'command_usage' not in globals():
+        command_usage = defaultdict(int)
+      # Create the Flask app
+    app = create_dashboard_app(
+        PERSONA_MODES=PERSONA_MODES,
+        custom_personas=custom_personas,
+        get_level=get_level,
+        get_xp=get_xp
+    )
+    
+    # Set the bot instance
+    app.set_bot(bot)    # Define dashboard runner function
+    def run_dashboard():
+        """Run the dashboard with Socket.IO enabled"""
+        try:
+            socketio = app.config.get('socketio')
+            if socketio:
+                print("[Dashboard] Starting with Socket.IO support")
+                socketio.run(app, host='0.0.0.0', port=5005, debug=False, allow_unsafe_werkzeug=True)
+            else:
+                print("[Dashboard] Warning: Starting without Socket.IO (fallback mode)")
+                app.run(host='0.0.0.0', port=5005)
+        except Exception as e:
+            print(f"[Dashboard] Error starting server: {e}")
+            return
 
-# --- Meme Generator (simple text meme) ---
-@bot.command()
-async def yumi_meme(ctx, top: str, bottom: str):
-    """Generate a simple meme (text only)."""
-    meme = f"┌{'─'*max(len(top),len(bottom))}┐\n│{top.center(max(len(top),len(bottom)))}│\n│{bottom.center(max(len(top),len(bottom)))}│\n└{'─'*max(len(top),len(bottom))}┘"
-    await ctx.send(f"```{meme}```")
+    # Start dashboard in a separate thread
+    dashboard_thread = threading.Thread(target=run_dashboard, daemon=True)
+    dashboard_thread.start()
+    print("[Dashboard] Started web dashboard at http://127.0.0.1:5005")
+    return dashboard_thread
+    return dashboard_thread
 
-@bot.command()
-async def yumi_aiart(ctx, *, prompt: str):
-    """Generate AI art (placeholder)."""
-    await ctx.send(f"[AI Art Placeholder] Would generate art for: {prompt}")
-
-@bot.command()
-async def yumi_tts(ctx, *, text: str):
-    """Text-to-speech (placeholder)."""
-    await ctx.send(f"[TTS Placeholder] Would speak: {text}")
-
-# --- Advanced Moderation (auto-moderation, logging) ---
 @bot.event
 async def on_message_delete(message):
     log_channel = None
@@ -995,154 +1122,306 @@ async def on_member_join(member):
     if log_channel:
         await log_channel.send(f"[Log] {member.mention} joined the server!")
 
-# Start the web dashboard in a background thread when the bot starts
-start_dashboard_thread(PERSONA_MODES, custom_personas, get_level, get_xp)
+# --- Dashboard Data Storage ---
+DASHBOARD_DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'datasets', 'dashboard_data')
+MESSAGE_STATS_FILE = os.path.join(DASHBOARD_DATA_DIR, 'message_stats.json')
+COMMAND_STATS_FILE = os.path.join(DASHBOARD_DATA_DIR, 'command_stats.json')
+SERVER_STATS_FILE = os.path.join(DASHBOARD_DATA_DIR, 'server_stats.json')
+CHANNEL_STATS_FILE = os.path.join(DASHBOARD_DATA_DIR, 'channel_stats.json')
+USER_STATS_FILE = os.path.join(DASHBOARD_DATA_DIR, 'user_stats.json')
 
-async def rotate_status_task():
-    await bot.wait_until_ready()
-    persona_status = {
-        'normal': "Your friendly, caring AI companion 🤗 | !yumi_help",
-        'mistress': "Mistress Yumi is in control 👠 | !yumi_mode",
-        'bdsm': "Dungeon open. Safe words ready. 🖤 | !yumi_mode",
-        'girlfriend': "Your playful AI girlfriend 💌 | !yumi_mode",
-        'wifey': "Loyal, loving, and here for you 💍 | !yumi_mode",
-        'tsundere': "Not like I like you or anything! 😳 | !yumi_mode",
-        'shy': "Um... hi... (shy mode) 😳 | !yumi_mode",
-        'sarcastic': "Oh, joy. | !yumi_mode",
-        'optimist': "Good vibes only! 🌞 | !yumi_mode",
-        'pessimist': "Here we go again... | !yumi_mode",
-        'nerd': "Did you know? 🤓 | !yumi_mode",
-        'chill': "No worries 😎 | !yumi_mode",
-        'supportive': "You got this! 💪 | !yumi_mode",
-        'comedian': "Ready for laughs! 😂 | !yumi_mode",
-        'philosopher': "Let's ponder... 🤔 | !yumi_mode",
-        'grumpy': "What now? 😒 | !yumi_mode",
-        'gamer': "GLHF! 🎮 | !yumi_mode",
-        'genalpha': "Slay, bestie! 💅 | !yumi_mode",
-        'egirl': "uwu cuteness overload! 🦋 | !yumi_mode"
-    }
-    status_cycle = itertools.cycle(persona_status.values())
-    while not bot.is_closed():
-        status = next(status_cycle)
-        activity = discord.Game(name=status)
-        try:
-            await bot.change_presence(status=discord.Status.online, activity=activity)
-        except Exception:
-            pass
-        await asyncio.sleep(60)  # 1 minutes
+# Initialize statistics dictionaries
+message_stats = defaultdict(int)  # Tracks message counts per hour and server
+command_stats = defaultdict(int)  # Tracks command usage
+server_stats = {}  # Tracks server activity
+channel_stats = defaultdict(lambda: {"last_message": None, "message_count": 0, "active_users": set()})
+user_stats = defaultdict(lambda: {"messages": 0, "commands": 0, "last_active": None})
 
-@bot.command()
-async def yumi_uwu(ctx):
-    """Yumi sends an uwu message."""
-    uwu_lines = [
-        "Uwu~! You're the cutest! (✿◕ᴗ◕)ﾉ✧",
-        "Nyaa~ what's up, cutie? (｡♥‿♥｡)",
-        "Hehe, did I make you blush? UwU",
-        "*giggles* You're so precious! (づ｡◕‿‿◕｡)づ"
-    ]
-    await ctx.send(random.choice(uwu_lines))
-
-@bot.command()
-async def yumi_hug(ctx):
-    """Yumi gives you a big virtual hug."""
-    hugs = [
-        "*hugs you tightly* (づ｡◕‿‿◕｡)づ",
-        "Come here, let me give you a big hug! 🤗",
-        "You deserve all the hugs! 💖",
-        "*wraps arms around you* Stay cozy! 🦋"
-    ]
-    await ctx.send(random.choice(hugs))
-
-@bot.command()
-async def yumi_kiss(ctx):
-    """Yumi blows you a kiss."""
-    kisses = [
-        "*blows you a kiss* 😘",
-        "Mwah~! 💋",
-        "You get a special kiss from Yumi! (｡♥‿♥｡)",
-        "*kisses your cheek* You're adorable! 💕"
-    ]
-    await ctx.send(random.choice(kisses))
-
-@bot.command()
-async def yumi_blush(ctx):
-    """Yumi blushes cutely."""
-    blushes = [
-        "*blushes deeply* S-stop looking at me like that! >///<",
-        "Omg, you're making me blush! (⁄ ⁄•⁄ω⁄•⁄ ⁄)⁄",
-        "Hehe, you're too sweet! (〃＾▽＾〃)",
-        "*hides face* Nyaa~ so embarrassing! 🦋"
-    ]
-    await ctx.send(random.choice(blushes))
-
-@bot.command()
-@commands.check_any(commands.has_permissions(administrator=True), admin_only())
-async def yumi_reload(ctx):
-    """
-    Reload the entire bot: all modules, datasets, dashboard, and restart all background tasks (admin only).
-    """
-    import importlib
-    import sys
-    import asyncio
-    modules = ['llm', 'persona', 'history', 'feedback', 'websearch', 'image_caption', 'web_dashboard']
-    reloaded = []
-    failed = []
-    for mod in modules:
-        try:
-            importlib.reload(sys.modules[f'bot_core.{mod}'])
-            reloaded.append(mod)
-        except Exception as e:
-            failed.append(f"{mod} ({e})")
-    # Reload datasets and persistent data
-    global custom_personas, channel_personas, user_facts, user_xp, scheduled_announcements, CONTEXT_MODES, LOCKED_CHANNELS
-    custom_personas = load_json_file(CUSTOM_PERSONAS_FILE, {})
-    channel_personas = load_json_file(CHANNEL_PERSONAS_FILE, {})
-    user_facts = load_json_file(USER_FACTS_FILE, {})
-    user_xp = load_json_file(USER_XP_FILE, {})
-    scheduled_announcements = load_json_file(SCHEDULED_ANNOUNCEMENTS_FILE, [])
-    try:
-        import json
-        MODE_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'datasets', 'yumi_modes.json')
-        with open(MODE_FILE, 'r', encoding='utf-8') as f:
-            CONTEXT_MODES = json.load(f)
-    except Exception:
-        CONTEXT_MODES = {}
-    try:
-        LOCKDOWN_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'datasets', 'lockdown_channels.json')
-        with open(LOCKDOWN_FILE, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-            # Always convert to defaultdict(set) of sets after reload
-            LOCKED_CHANNELS = defaultdict(set)
-            for gid, cids in data.items():
-                LOCKED_CHANNELS[int(gid)] = set(cids)
-    except Exception:
-        LOCKED_CHANNELS = defaultdict(set)
-    # Restart dashboard thread to refresh dashboard state
-    try:
-        start_dashboard_thread(PERSONA_MODES, custom_personas, get_level, get_xp)
-        dashboard_status = "Dashboard thread restarted."
-    except Exception as e:
-        dashboard_status = f"Dashboard restart failed: {e}"
-    # Restart background tasks (status, reminders, announcements)    try:
-        bot.loop.create_task(rotate_status_task())
-        bot.loop.create_task(yumi_reminder_task())
-        bot.loop.create_task(scheduled_announcement_task())
-        tasks_status = "Background tasks restarted."
-    except Exception as e:
-        tasks_status = f"Background task restart failed: {e}"
+def load_dashboard_stats():
+    """Load statistics from saved files"""
+    global message_stats, command_stats, server_stats, channel_stats, user_stats
     
-    msg = f"✅ Reloaded modules: {', '.join(reloaded)}.\n{dashboard_status}\n{tasks_status}"
-    if failed:
-        msg += f"\n❌ Failed: {', '.join(failed)}"
-    else:
-        msg += "\nAll persistent data reloaded."
-    await ctx.send(msg)
+    try:
+        # Initialize stats dictionaries
+        if os.path.exists(MESSAGE_STATS_FILE):
+            with open(MESSAGE_STATS_FILE, 'r') as f:
+                message_stats.update(json.load(f))
+        if os.path.exists(COMMAND_STATS_FILE):
+            with open(COMMAND_STATS_FILE, 'r') as f:
+                command_stats.update(json.load(f))
+        if os.path.exists(SERVER_STATS_FILE):
+            with open(SERVER_STATS_FILE, 'r') as f:
+                server_stats.update(json.load(f))
+        if os.path.exists(CHANNEL_STATS_FILE):
+            with open(CHANNEL_STATS_FILE, 'r') as f:
+                data = json.load(f)
+                for channel_id, stats in data.items():
+                    channel_stats[channel_id].update(stats)
+                    # Convert active_users back to set if it was saved as list
+                    if isinstance(channel_stats[channel_id]["active_users"], list):
+                        channel_stats[channel_id]["active_users"] = set(channel_stats[channel_id]["active_users"])
+        if os.path.exists(USER_STATS_FILE):
+            with open(USER_STATS_FILE, 'r') as f:
+                data = json.load(f)
+                for user_id, stats in data.items():
+                    user_stats[user_id].update(stats)
+        print("[Stats] Successfully loaded dashboard statistics")
+    except Exception as e:
+        print(f"[Stats] Error loading statistics: {e}")
+        # Initialize empty stats if loading fails
+        message_stats.clear()
+        command_stats.clear()
+        server_stats.clear()
+        channel_stats.clear()
+        user_stats.clear()
+
+def save_dashboard_stats():
+    """Save current statistics to files"""
+    try:
+        with open(MESSAGE_STATS_FILE, 'w') as f:
+            json.dump(dict(message_stats), f)
+            
+        with open(COMMAND_STATS_FILE, 'w') as f:
+            json.dump(dict(command_stats), f)
+            
+        with open(SERVER_STATS_FILE, 'w') as f:
+            json.dump(server_stats, f)
+            
+        with open(CHANNEL_STATS_FILE, 'w') as f:
+            # Convert sets to lists for JSON serialization
+            channel_data = {}
+            for channel_id, stats in channel_stats.items():
+                channel_data[channel_id] = {
+                    **stats,
+                    "active_users": list(stats["active_users"])
+                }
+            json.dump(channel_data, f)
+            
+        with open(USER_STATS_FILE, 'w') as f:
+            json.dump(dict(user_stats), f)
+            
+    except Exception as e:
+        print(f"[Stats] Error saving statistics: {e}")
+
+async def update_server_stats():
+    """Background task to update server statistics periodically"""
+    await bot.wait_until_ready()
+    
+    while True:
+        try:
+            # Update stats for each guild
+            for guild in bot.guilds:
+                if str(guild.id) not in server_stats:
+                    server_stats[str(guild.id)] = {}
+                
+                stats = server_stats[str(guild.id)]
+                stats["name"] = guild.name
+                stats["member_count"] = guild.member_count
+                stats["channel_count"] = len(guild.channels)
+                stats["role_count"] = len(guild.roles)
+                
+                # Get online member count
+                online_count = sum(1 for m in guild.members if m.status != discord.Status.offline)
+                stats["online_count"] = online_count
+                
+                # Update last updated timestamp
+                stats["last_updated"] = datetime.utcnow().isoformat()
+            
+            # Save updated stats
+            save_dashboard_stats()
+            
+        except Exception as e:
+            print(f"[Stats] Error updating server stats: {e}")
+        
+        # Update every 5 minutes
+        await asyncio.sleep(300)
+
+# Clean up old stats periodically
+async def cleanup_old_stats():
+    """Clean up old statistics to prevent data buildup"""
+    await bot.wait_until_ready()
+    while True:
+        try:
+            now = datetime.utcnow()
+            yesterday = now - timedelta(days=1)
+            
+            # Clean up message stats older than 24 hours
+            for key in list(message_stats.keys()):
+                if key.startswith("hour_") and int(key.split("_")[1]) < yesterday.hour:
+                    del message_stats[key]
+            
+            # Clean up inactive users (no activity for 7 days)
+            for user_id in list(user_stats.keys()):
+                last_active = datetime.fromisoformat(user_stats[user_id]["last_active"])
+                if (now - last_active).days > 7:
+                    del user_stats[user_id]
+            
+            save_dashboard_stats()
+        except Exception as e:
+            print(f"[Stats] Error cleaning up old stats: {e}")
+        finally:
+            await asyncio.sleep(3600)  # Run every hour
+
+async def setup_tasks():
+    """Initialize all background tasks"""
+    # Load initial data
+    load_dashboard_stats()
+    
+    # Background task for server/guild statistics
+    bot.loop.create_task(update_server_stats())
+    
+    # Background task for cleaning up old stats
+    bot.loop.create_task(cleanup_old_stats())
+    
+    # Background task for scheduled announcements
+    bot.loop.create_task(scheduled_announcement_task())
+    
+    # Background task for Yumi reminders
+    bot.loop.create_task(yumi_reminder_task())
+    
+    # Start dashboard in a separate thread
+    start_dashboard_thread(
+        bot_instance=bot, 
+        persona_modes=PERSONA_MODES,
+        custom_personas_data=custom_personas
+    )
+    
+    print("[Tasks] All background tasks initialized successfully")
+
+# --- Make sure to load all required data before starting tasks ---
+DASHBOARD_DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'datasets', 'dashboard_data')
+os.makedirs(DASHBOARD_DATA_DIR, exist_ok=True)
+
+MESSAGE_STATS_FILE = os.path.join(DASHBOARD_DATA_DIR, 'message_stats.json')
+COMMAND_STATS_FILE = os.path.join(DASHBOARD_DATA_DIR, 'command_stats.json')
+SERVER_STATS_FILE = os.path.join(DASHBOARD_DATA_DIR, 'server_stats.json')
+CHANNEL_STATS_FILE = os.path.join(DASHBOARD_DATA_DIR, 'channel_stats.json')
+USER_STATS_FILE = os.path.join(DASHBOARD_DATA_DIR, 'user_stats.json')
+
+def save_message_stats():
+    """Save message statistics to file"""
+    try:
+        with open(MESSAGE_STATS_FILE, 'w', encoding='utf-8') as f:
+            # Convert defaultdict to regular dict for JSON serialization
+            json.dump(dict(message_stats), f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"Error saving message stats: {e}")
+
+def load_message_stats():
+    """Load message statistics from file"""
+    try:
+        with open(MESSAGE_STATS_FILE, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+            # Update the defaultdict with loaded data
+            message_stats.update(data)
+    except FileNotFoundError:
+        pass  # File doesn't exist yet
+    except Exception as e:
+        print(f"Error loading message stats: {e}")
+
+# Initialize statistics tracking
+message_stats = defaultdict(int)
+command_stats = defaultdict(int)
+server_stats = {}
+channel_stats = defaultdict(lambda: {"last_message": None, "message_count": 0, "active_users": set()})
+user_stats = defaultdict(lambda: {"messages": 0, "commands": 0, "last_active": None})
+
+# Load existing stats
+load_message_stats()
+
+async def update_message_stats(message):
+    """Update message statistics when a message is sent"""
+    try:
+        # Update hourly stats
+        hour = datetime.utcnow().hour
+        message_stats[f"hour_{hour}"] += 1
+
+        # Update daily stats
+        day = datetime.utcnow().weekday()
+        message_stats[f"day_{day}"] += 1
+
+        # Update total message count
+        message_stats["total"] += 1
+
+        # Update channel stats
+        if message.guild:
+            channel_id = str(message.channel.id)
+            user_id = str(message.author.id)
+
+            channel_stats[channel_id]["message_count"] += 1
+            channel_stats[channel_id]["last_message"] = datetime.utcnow().isoformat()
+            channel_stats[channel_id]["active_users"].add(user_id)
+
+        # Save stats periodically (every 10 messages)
+        if message_stats["total"] % 10 == 0:
+            save_message_stats()
+
+    except Exception as e:
+        print(f"Error updating message stats: {e}")
+
+# --- Utility stubs for context-aware conversation (if not already defined) ---
+def update_command_stats(ctx):
+    pass
+
+def extract_user_facts_from_message(user_id, message_content):
+    """Extracts user facts from natural language and updates user_facts dict."""
+    updated = False
+    # Always use a dict for facts
+    facts = user_facts.get(user_id)
+    if not isinstance(facts, dict):
+        facts = {}
+    # Name patterns
+    name_match = re.search(r"(?:my name is|call me|i am|i'm|im)\s+([A-Za-z0-9_\- ]{2,32})", message_content, re.IGNORECASE)
+    if name_match:
+        facts['name'] = name_match.group(1).strip()
+        updated = True
+    # Location patterns
+    loc_match = re.search(r"(?:i (?:live|am) in|i'm from|im from)\s+([A-Za-z0-9_\- ,]{2,64})", message_content, re.IGNORECASE)
+    if loc_match:
+        facts['location'] = loc_match.group(1).strip()
+        updated = True
+    # Birthday patterns
+    bday_match = re.search(r"(?:my birthday is|i was born on)\s+([A-Za-z0-9_\- ,]{2,32})", message_content, re.IGNORECASE)
+    if bday_match:
+        facts['birthday'] = bday_match.group(1).strip()
+        updated = True
+    # Favorite patterns
+    fav_match = re.search(r"my favorite (\w+) is ([A-Za-z0-9_\- ]{2,32})", message_content, re.IGNORECASE)
+    if fav_match:
+        facts[f'favorite_{fav_match.group(1).lower()}'] = fav_match.group(2).strip()
+        updated = True
+    if updated:
+        user_facts[user_id] = facts
+        save_json_file(USER_FACTS_FILE, user_facts)
+        print(f"[DEBUG] Updated user facts for {user_id}: {facts}")
+    return updated
+
+def is_new_topic(message_content):
+    return False
 
 def run():
-    # Ensure lockdown channels are loaded from the file
-    print("[Startup] Loading lockdown channels...")
-    load_lockdown_channels()
-    print(f"[Startup] Loaded lockdown channels: {LOCKED_CHANNELS}")
-    
-    # Run the bot
-    bot.run(TOKEN)
+    """Start the bot with the Discord token."""
+    discord_token = os.getenv('DISCORD_TOKEN')
+    if not discord_token:
+        try:
+            with open('config.json', 'r') as f:
+                config = json.load(f)
+                discord_token = config.get('token')
+        except Exception:
+            print("Error: Discord token not found in environment or config.json")
+            sys.exit(1)
+
+    try:
+        print("[Bot] Starting Yumi Sugoi...")
+        bot.run(discord_token)
+    except discord.errors.LoginFailure:
+        print("Error: Invalid Discord token")
+        sys.exit(1)
+    except Exception as e:
+        print(f"Error starting bot: {e}")
+        traceback.print_exc()
+        sys.exit(1)
+
+# Only run if this file is run directly
+if __name__ == "__main__":
+    run()

@@ -290,15 +290,13 @@ def get_persona_openers():
         ]
     return ["Hello! I'm Yumi Sugoi."]
 
-def yumi_sugoi_response(text: str, allow_opener: bool = True) -> str:
+def yumi_sugoi_response(text: str, allow_opener: bool = True, user_facts=None, convo_history=None) -> str:
     from .llm import generate_llm_response  # moved import here to avoid circular import
-    # Remove any leading 'Yumi:' or bot name prefix if present
     text = re.sub(r"^\s*(Yumi\s*[:：-]\s*|Yumi Sugoi\s*[:：-]\s*)", "", text, flags=re.IGNORECASE)
     openers = get_persona_openers()
     mode = _current_mode
-    # Try LLM first
     try:
-        llm_reply = generate_llm_response(text)
+        llm_reply = generate_llm_response(text, user_facts=user_facts, convo_history=convo_history)
         if llm_reply and llm_reply.strip() and llm_reply.strip().lower() != text.strip().lower():
             return llm_reply
     except Exception as e:
