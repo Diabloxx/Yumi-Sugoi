@@ -38,3 +38,6 @@ datasets/user_names.json
 datasets/yumi_modes.json
 server_setup.py
 user_feedback.json
+advertise_on_twitter.py
+test_simple_tweet.py
+test_twitter_auth.py

@@ -266,3 +266,9 @@ def setup_prefix_commands(bot):
             await interaction.response.send_message(f"✅ Cleared all warnings for {member.display_name}.", ephemeral=True)
         else:
             await interaction.response.send_message(f"{member.display_name} has no warnings to clear.", ephemeral=True)
+
+# Register all slash commands and sync with Discord
+async def setup_slash_commands(bot):
+    # Register all slash commands here (already done by decorators)
+    await bot.tree.sync()
+    print("[Slash Commands] Synced from commands.py")
