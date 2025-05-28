@@ -1,5 +1,19 @@
 # Yumi Sugoi Changelog
 
+## [v1.4.3] - 2025-05-27
+### Added
+- **Restored Memory Algorithm:**
+  - Implemented `extract_and_store_user_facts()` function for automatic fact extraction
+  - Added LLM-based fact extraction with JSON parsing
+  - Implemented fallback pattern matching for basic fact extraction
+  - Added validation tests for memory algorithm functionality
+
+### Fixed
+- Missing memory functionality in message handler
+- Integration with conversation history system
+- User fact storage and retrieval
+- Memory context injection into LLM prompts
+
 ## [v1.4.2] - 2025-05-24
 ### Added
 - **Enhanced Dashboard UI:**

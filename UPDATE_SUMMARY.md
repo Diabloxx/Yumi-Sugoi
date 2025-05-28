@@ -54,6 +54,16 @@
     - The command restarts the entire bot process using `os.execv`, ensuring a full restart without manual intervention
     - Unauthorized users receive a denial message
 
+### Memory Algorithm Restoration (May 27)
+- ✅ Restored missing memory algorithm functionality in `on_message` event handler
+- ✅ Implemented `extract_and_store_user_facts()` function for automatic user fact extraction
+- ✅ Added LLM-based fact extraction with JSON parsing capability
+- ✅ Implemented fallback pattern matching for basic fact extraction when LLM extraction fails
+- ✅ Verified integration with existing conversation history system in `history.py`
+- ✅ Added validation tests to confirm memory algorithm functionality
+- ✅ Ensured user facts and conversation history are properly saved after each interaction
+- ✅ Confirmed that memory context is correctly injected into LLM prompts
+
 ## Next Steps
 1. Test the Live Chat functionality with real servers
 2. Verify the User Management functionality
@@ -63,11 +73,14 @@
 6. Test the new hot-reload functionality in production environment
 7. Monitor dashboard statistics loading performance
 8. Ensure the secure restart command works as intended and is properly restricted
+9. Perform comprehensive testing of the restored memory algorithm with real users
+10. Consider enhancing fact extraction to identify more complex user details
 
 ## Known Issues
 No critical issues - recent fixes have addressed all known problems.
 - Minor: Consider optimizing dashboard statistics loading for large datasets
 - Minor: Could add progress indicators for hot-reload operations
+- Minor: Consider adding more sophisticated fact extraction patterns for edge cases
 
 ---
-Last updated: May 25, 2025
+Last updated: May 27, 2025
