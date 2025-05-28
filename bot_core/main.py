@@ -32,6 +32,8 @@ from .feedback import (
 from .websearch import duckduckgo_search_and_summarize
 from .image_caption import caption_image
 from .web_dashboard import load_dashboard_stats as load_dashboard_stats_func, start_dashboard_thread, set_bot_instance
+from .yumi_vision import download_image_bytes, query_ollama_with_image
+
 
 # --- Load initial state ---
 # Load conversation history
@@ -1020,7 +1022,37 @@ async def on_message(message):
     # Lockdown: Only respond in allowed channels
     if message.guild and LOCKED_CHANNELS.get(message.guild.id):
         if message.channel.id not in LOCKED_CHANNELS[message.guild.id]:
-            return
+            # Outside locked channels
+
+            # Let commands process anywhere, so don't return here
+            # Instead, only skip non-command responses:
+            if not message.content.startswith(bot.command_prefix):
+                return
+
+    # === IMAGE HANDLING: Add this block here ===
+    if message.attachments:
+        for attachment in message.attachments:
+            if attachment.content_type and attachment.content_type.startswith("image/"):
+                try:
+                    async with message.channel.typing():
+                        # Download the image bytes
+                        image_bytes = await download_image_bytes(attachment.url)
+
+                        # Use message content as prompt, or default
+                        prompt = message.content.strip() if message.content else "What is in this image?"
+
+                        # Query Ollama with image and prompt
+                        response = await query_ollama_with_image(image_bytes, prompt)
+
+                        # Send the response back to the channel
+                        await message.channel.send(response)
+
+                    # Image handled, skip further processing for this message
+                    return
+
+                except Exception as e:
+                    await message.channel.send(f"⚠️ Sorry, I couldn't analyze the image: {e}")
+                    return
 
     # Update dashboard stats
     await update_message_stats(message)
