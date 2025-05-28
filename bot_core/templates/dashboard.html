@@ -15,9 +15,10 @@
     <!-- Chart.js for analytics -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- Socket.IO client -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.4/socket.io.min.js"></script>
-    <!-- Custom styles -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.4/socket.io.min.js"></script>    <!-- Custom styles -->
     <link rel="stylesheet" href="/static/dashboard.css">
+    <!-- Debug styles for animation testing -->
+    <link rel="stylesheet" href="/static/debug.css">
 </head>
 <body>
     <!-- Navbar -->
@@ -62,7 +63,8 @@
     <div class="container main-content">
         <!-- Stats overview cards -->
         <div class="row mb-4 fade-in" style="--delay: 0.1s">
-            <div class="col-md-3 mb-3">                <div class="stat-card" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)">
+            <div class="col-md-3 mb-3">
+                <div class="stat-card" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)">
                     <div class="icon"><i class="fas fa-server"></i></div>
                     <div class="number" id="server-count">-</div>
                     <div class="label">Servers</div>
@@ -154,8 +156,7 @@
                                     <button class="btn btn-sm btn-outline-secondary" data-period="week">Week</button>
                                     <button class="btn btn-sm btn-outline-secondary" data-period="month">Month</button>
                                 </div>
-                            </div>
-                            <div class="card-body">
+                            </div>                            <div class="card-body">
                                 <canvas id="activityChart" height="250"></canvas>
                             </div>
                         </div>
@@ -800,28 +801,5 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <!-- Dashboard JS -->
     <script src="/static/dashboard.js"></script>
-    
-    <!-- Add connection status display -->
-    <div id="connection-status" class="disconnected">Connection: Disconnected</div>
-
-    <!-- Add some CSS for connection status -->
-    <style>
-        #connection-status {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            padding: 10px;
-            border-radius: 5px;
-            font-weight: bold;
-        }
-        #connection-status.connected {
-            background-color: #4CAF50;
-            color: white;
-        }
-        #connection-status.disconnected {
-            background-color: #f44336;
-            color: white;
-        }
-    </style>
 </body>
 </html>

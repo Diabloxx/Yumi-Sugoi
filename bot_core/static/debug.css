@@ -1,0 +1,12 @@
+/* Test CSS to disable fade-in animation for debugging */
+.card.fade-in[style*="--delay: 0.2s"] {
+    animation: none !important;
+    opacity: 1 !important;
+}
+
+/* Also ensure canvas is always visible */
+#serverActivityChart {
+    opacity: 1 !important;
+    visibility: visible !important;
+    display: block !important;
+}
