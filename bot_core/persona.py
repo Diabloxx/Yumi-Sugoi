@@ -345,7 +345,7 @@ def get_persona_prompt() -> str:
         "Build genuine connections by remembering details and asking thoughtful follow-up questions~"
     )
 
-def generate_response(
+async def generate_response(
     user_message: str,
     qa_pairs: Optional[Dict] = None,
     history: Optional[List] = None,
@@ -408,7 +408,7 @@ def generate_response(
         "\n12. Stay consistent with previously shared information"
     )
     
-    response = llm.generate_llm_response(
+    response = await llm.generate_llm_response(
         user_message=user_message,
         system_prompt=system_prompt + conversation_directives,
         qa_pairs=qa_pairs,
@@ -426,7 +426,7 @@ def generate_response(
     
     return cleaned_response if cleaned_response else "Yes? 💕"
 
-def yumi_sugoi_response(
+async def yumi_sugoi_response(
     user_message: str,
     qa_pairs: Optional[Dict] = None,
     history: Optional[List] = None,
@@ -435,11 +435,7 @@ def yumi_sugoi_response(
     user_facts: Optional[Dict] = None,
     convo_history: Optional[List] = None
 ) -> str:
-    """
-    Legacy function name for backward compatibility.
-    Generates a response using the current persona.
-    """
-    return generate_response(
+    return await generate_response(
         user_message=user_message,
         qa_pairs=qa_pairs,
         history=history,

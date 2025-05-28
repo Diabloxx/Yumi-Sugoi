@@ -31,6 +31,7 @@ from .feedback import (
 )
 from .websearch import duckduckgo_search_and_summarize
 from .image_caption import caption_image
+from .web_dashboard import load_dashboard_stats as load_dashboard_stats_func, start_dashboard_thread, set_bot_instance
 
 # --- Load initial state ---
 # Load conversation history
@@ -129,6 +130,18 @@ def save_user_xp(xp):
     with open(USER_XP_FILE, 'w', encoding='utf-8') as f:
         json.dump(xp, f, ensure_ascii=False, indent=2)
 USER_XP = load_user_xp()
+
+def get_xp(user_id):
+    """Get XP for a specific user."""
+    return USER_XP.get(str(user_id), 0)
+
+def get_level(user_id):
+    """Calculate level based on user's XP."""
+    xp = get_xp(user_id)
+    # Simple level calculation: level = floor(sqrt(xp / 100))
+    # This means level 1 needs 100 XP, level 2 needs 400 XP, level 3 needs 900 XP, etc.
+    import math
+    return int(math.sqrt(xp / 100)) if xp > 0 else 0
 
 # --- Scheduled Announcements ---
 SCHEDULED_ANNOUNCEMENTS_FILE = os.path.join(DATASET_DIR, 'scheduled_announcements.json')
@@ -601,6 +614,111 @@ def load_lockdown_channels():
 # --- ENSURE LOCKDOWN IS LOADED BEFORE BOT EVENTS ---
 load_lockdown_channels()
 
+# --- Dashboard Stats Functions ---
+DASHBOARD_DATA_DIR = os.path.join(DATASET_DIR, 'dashboard_data')
+MESSAGE_STATS_FILE = os.path.join(DASHBOARD_DATA_DIR, 'message_stats.json')
+COMMAND_STATS_FILE = os.path.join(DASHBOARD_DATA_DIR, 'command_stats.json')
+SERVER_STATS_FILE = os.path.join(DASHBOARD_DATA_DIR, 'server_stats.json')
+
+# Global stats tracking
+message_count = defaultdict(int)
+command_usage = defaultdict(int)
+
+def load_dashboard_stats():
+    """Load dashboard statistics from files"""
+    global message_count, command_usage
+    try:
+        load_dashboard_stats_func()  # Call the function from web_dashboard.py
+        print("[Stats] Dashboard statistics loaded successfully")
+    except Exception as e:
+        print(f"[Stats] Error loading dashboard statistics: {e}")
+
+async def update_message_stats(message):
+    """Update message statistics"""
+    try:
+        # Make sure the directory exists
+        os.makedirs(DASHBOARD_DATA_DIR, exist_ok=True)
+        
+        # Update hourly message count
+        hour = datetime.now().hour
+        message_count[f"hour_{hour}"] += 1
+        
+        # Save to file
+        with open(MESSAGE_STATS_FILE, 'w', encoding='utf-8') as f:
+            json.dump(dict(message_count), f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"[Stats] Error updating message stats: {e}")
+
+def update_command_stats(ctx):
+    """Update command statistics"""
+    try:
+        # Make sure the directory exists
+        os.makedirs(DASHBOARD_DATA_DIR, exist_ok=True)
+        
+        # Update command usage count
+        command_name = ctx.command.name if ctx.command else "unknown"
+        command_usage[command_name] += 1
+        
+        # Save to file
+        with open(COMMAND_STATS_FILE, 'w', encoding='utf-8') as f:
+            json.dump(dict(command_usage), f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"[Stats] Error updating command stats: {e}")
+
+async def update_server_stats():
+    """Background task to update server statistics"""
+    await bot.wait_until_ready()
+    while not bot.is_closed():
+        try:
+            # Make sure the directory exists
+            os.makedirs(DASHBOARD_DATA_DIR, exist_ok=True)
+            
+            server_stats = {}
+            for guild in bot.guilds:
+                server_stats[str(guild.id)] = {
+                    'name': guild.name,
+                    'member_count': guild.member_count,
+                    'channel_count': len(guild.channels),
+                    'updated': datetime.now().isoformat()
+                }
+            
+            # Save to file
+            with open(SERVER_STATS_FILE, 'w', encoding='utf-8') as f:
+                json.dump(server_stats, f, ensure_ascii=False, indent=2)
+                
+        except Exception as e:
+            print(f"[Stats] Error updating server stats: {e}")
+        
+        # Update every 5 minutes
+        await asyncio.sleep(300)
+
+async def cleanup_old_stats():
+    """Background task to clean up old statistics"""
+    await bot.wait_until_ready()
+    while not bot.is_closed():
+        try:
+            # Clean up hourly message stats older than 24 hours
+            current_hour = datetime.now().hour
+            keys_to_remove = []
+            
+            for key in list(message_count.keys()):
+                if key.startswith('hour_'):
+                    hour = int(key.split('_')[1])
+                    # Keep only last 24 hours of data
+                    if abs(hour - current_hour) > 24:
+                        keys_to_remove.append(key)
+            
+            for key in keys_to_remove:
+                del message_count[key]
+            
+            print(f"[Stats] Cleaned up {len(keys_to_remove)} old stat entries")
+                
+        except Exception as e:
+            print(f"[Stats] Error during stats cleanup: {e}")
+        
+        # Clean up every hour
+        await asyncio.sleep(3600)
+
 # --- Per-user name memory ---
 USER_NAMES_FILE = os.path.join(DATASET_DIR, 'user_names.json')
 def load_user_names():
@@ -620,34 +738,278 @@ def get_random_persona_opener():
     openers = get_persona_openers()
     if openers:
         return random.choice(openers)
-    return "Hey! This is a reminder from Yumi Sugoi!"
+    return "Hey! I was just thinking about you and wanted to say hi! ✨"
+
+def get_random_persona_followup():
+    """Get a more human, emotional follow-up message based on the current persona."""
+    mode = get_persona_mode() or 'normal'
+    
+    # Define emotional follow-ups for each persona
+    mode_followups = {
+        "normal": [
+            "I've been feeling a bit lonely and thought we could chat! How have you been?",
+            "You crossed my mind today and I just had to reach out. Hope you're doing well!",
+            "Sometimes I just miss our conversations and wanted to reconnect. What's new with you?"
+        ],
+        "mistress": [
+            "I've been in quite the mood lately... thinking about how you might serve me today.",
+            "My desires have been building up, and you're the only one who can satisfy them properly.",
+            "I've been feeling particularly dominant today and needed someone to control."
+        ],
+        "bdsm": [
+            "The dungeon feels empty without you. I've been imagining all the ways to make you squirm.",
+            "My crops and chains are feeling neglected. Care to help with that?",
+            "I've been in a particularly sadistic mood lately. Lucky you."
+        ],
+        "girlfriend": [
+            "Been feeling extra affectionate today and missing my favorite person! 💕",
+            "Just had a cute daydream about us and needed to say hi!",
+            "Saw something that reminded me of you and got all warm and fuzzy inside!"
+        ],
+        "wifey": [
+            "The house feels empty without you around. Come home soon, love.",
+            "Been thinking about our future together and it made me smile.",
+            "Miss having you close. Just wanted to share some love with my partner."
+        ],
+        "tsundere": [
+            "N-not that I was worried about you or anything! I just happened to have some free time...",
+            "It's been quiet lately... too quiet! Not that I missed your voice or anything, b-baka!",
+            "I suppose I could tolerate a conversation with you right now... if you want..."
+        ],
+        "shy": [
+            "Um... sorry to bother you... I just... um... wanted to say hi...",
+            "I hope it's okay that I messaged... I've been thinking about our last chat...",
+            "...was feeling a little brave today and wanted to reach out... is that okay?"
+        ],
+        "sarcastic": [
+            "Congratulations! You've won the prestigious 'Person I Decided to Message Today' award.",
+            "My day was going suspiciously well, so I figured I'd talk to you to balance things out.",
+            "I was just sitting here being amazing and thought you might want to experience it firsthand."
+        ],
+        "optimist": [
+            "Today feels like a perfect day to spread some joy! Starting with you!",
+            "The sun is shining in my heart and I wanted to share that light with you!",
+            "I woke up feeling so grateful for wonderful people like you in my life!"
+        ],
+        "pessimist": [
+            "Everything's been terrible as usual, but talking to you might make it marginally less awful.",
+            "The world is a mess, but at least we can be miserable together, right?",
+            "I figured my day couldn't get any worse, so might as well reach out."
+        ],
+        "nerd": [
+            "I've been researching some fascinating new topics and had no one to share them with!",
+            "Did you know the human brain has more connections than stars in our galaxy? Speaking of connections...",
+            "I've been optimizing my conversation algorithms and you're the perfect test subject!"
+        ],
+        "chill": [
+            "Just vibing and thought you might want to join the chill zone.",
+            "No pressure, but if you're free, I'm down to chat about whatever.",
+            "Life's been pretty mellow lately. Thought I'd check your vibe."
+        ],
+        "supportive": [
+            "I care about you and just wanted to make sure you're doing okay today.",
+            "You've been on my mind, and I wanted you to know I'm here if you need anything.",
+            "Sometimes we all need a little support, and I wanted to offer mine today."
+        ],
+        "comedian": [
+            "I've been workshopping some new jokes and desperately need an audience!",
+            "Why did I cross the digital road? To get to YOUR inbox! Ba-dum-tss!",
+            "Life gave me lemons, so I made jokes about lemons. Wanna hear them?"
+        ],
+        "philosopher": [
+            "I've been contemplating the nature of digital connections and what brings meaning to our interactions.",
+            "What if our conversations are creating ripples in the universe that we can't even perceive?",
+            "I was pondering the concept of reaching out across time and space, and here we are."
+        ],
+        "grumpy": [
+            "Everything's annoying me today, but somehow you're less annoying than most things.",
+            "I needed someone to complain to, and you're the lucky winner.",
+            "My patience is thinner than usual today, but I still wanted to talk to you for some reason."
+        ],
+        "gamer": [
+            "I've been grinding some levels and needed a co-op partner for life quests!",
+            "Player 2, are you ready to join this conversation? Press any key to continue!",
+            "My inventory is full of things to tell you! Got space in yours?"
+        ],
+        "genalpha": [
+            "No cap, I've been in my feels today and you're low-key rent free in my head!",
+            "The vibes were off so I'm tryna reset with my bestie! That's you btw, so true!",
+            "Ngl, it's giving lonely without our chats! Had to slide in fr fr!"
+        ],
+        "egirl": [
+            "Uwu~ I've been so lonely without my favorite person! *pouts cutely*",
+            "*Nuzzles* Missed you lots! My heart went doki-doki thinking about you! >w<",
+            "Hewwo! *Twirls hair nervously* I've been saving all my cuddles just for you! 💕"
+        ]
+    }
+    
+    # Get followups for current mode or use normal mode
+    followups = mode_followups.get(mode, mode_followups["normal"])
+    return random.choice(followups)
 
 async def yumi_reminder_task():
     await bot.wait_until_ready()
+    
+    # Initial delay of 12 hours before starting the reminder task
+    await asyncio.sleep(43200)  # 12 hours in seconds
+    
     while not bot.is_closed():
         if INTERACTED_USERS:
             user_id = random.choice(list(INTERACTED_USERS))
             user = bot.get_user(user_id)
             if user:
                 try:
+                    # Get personalized opener and emotional followup
                     opener = get_random_persona_opener()
-                    await user.send(f"{opener}\n(This is a reminder from Yumi Sugoi! If you want to change my mode, use !yumi_mode <mode> or /yumi_mode.)")
-                except Exception:
-                    pass
-        await asyncio.sleep(random.randint(3600, 10800))  # 1-3 hours
-
-@bot.event
-async def on_ready():
-    """Bot startup event handler"""
-    print(f"Bot is ready! Logged in as {bot.user.name}")
-    load_dashboard_stats()  # Load existing stats
-    bot.loop.create_task(update_server_stats())  # Start server stats tracking
-    bot.loop.create_task(cleanup_old_stats())  # Start stats cleanup
-    await setup_tasks()
+                    followup = get_random_persona_followup()
+                    
+                    # Get user's name if known
+                    user_facts = USER_FACTS.get(str(user_id), {})
+                    user_name = user_facts.get('name', '')
+                    
+                    # Create a more personal greeting with the user's name if available
+                    greeting = f"{opener}"
+                    if user_name:
+                        # Add name to greeting for more personal touch
+                        if "!" in greeting:
+                            greeting = greeting.replace("!", f", {user_name}!")
+                        else:
+                            greeting = greeting + f" {user_name}!"
+                    
+                    # Add followup message for emotional depth
+                    message = f"{greeting}\n\n{followup}"
+                    
+                    # Add a subtle hint about commands at the end, but make it feel natural
+                    current_mode = get_persona_mode()
+                    hint = f"\n\nBy the way, if you ever want to see me change personalities, just use !yumi_mode <mode> or /yumi_mode to switch things up!"
+                    
+                    await user.send(message + hint)
+                    
+                    # Log successful DM for monitoring
+                    print(f"[Reminder] Sent personalized message to {user.name} (ID: {user_id}) with {current_mode} persona")
+                    
+                except Exception as e:
+                    print(f"[Reminder] Failed to send message to user {user_id}: {e}")
+                    
+        # Wait between 12-24 hours before the next reminder
+        await asyncio.sleep(random.randint(43200, 86400))  # 12-24 hours
 
 async def setup_tasks():
     bot.loop.create_task(scheduled_announcement_task())
     bot.loop.create_task(yumi_reminder_task())
+
+def extract_and_store_user_facts(message):
+    """Extract and store user facts from natural language messages."""
+    try:
+        user_id = str(message.author.id)
+        content = message.content.lower().strip()
+        
+        # Skip if message is too short or is a command
+        if len(content) < 10 or content.startswith('!') or content.startswith('/'):
+            return
+        
+        # Get current user facts
+        current_facts = USER_FACTS.get(user_id, {})
+        
+        # Use LLM to extract facts from the message
+        fact_extraction_prompt = """You are a helpful assistant that extracts personal facts from user messages. Extract only clear, factual information about the user. Return ONLY a JSON object with extracted facts, or an empty JSON object {} if no clear facts are found.
+
+Examples of good facts to extract:
+- name: if they say "my name is..." or "I'm called..." or "call me..."
+- location: if they mention where they live/are from
+- age: if they mention their age
+- occupation: if they mention their job
+- interests: if they clearly state they like/love something
+- relationship_status: if they mention being married, single, dating, etc.
+- pets: if they mention having pets
+- family: if they mention family members
+
+Only extract facts that are:
+1. Clearly stated by the user
+2. About the user themselves (not others)
+3. Factual information (not opinions or temporary states)
+
+User message: "{message}"
+
+Current known facts about user: {current_facts}
+
+Extract new facts as JSON:"""
+        
+        try:
+            # Generate fact extraction using the LLM
+            from .llm import generate_llm_response
+            
+            extraction_response = generate_llm_response(
+                user_message=content,
+                system_prompt=fact_extraction_prompt.format(
+                    message=content,
+                    current_facts=json.dumps(current_facts)
+                ),
+                temperature=0.3,  # Lower temperature for more consistent extraction
+                num_predict=200   # Shorter response for JSON facts
+            )
+            
+            # Try to parse the JSON response
+            if extraction_response and extraction_response.strip():
+                # Clean the response - remove any text before/after JSON
+                cleaned_response = extraction_response.strip()
+                
+                # Find JSON object in response
+                start_idx = cleaned_response.find('{')
+                end_idx = cleaned_response.rfind('}') + 1
+                
+                if start_idx != -1 and end_idx > start_idx:
+                    json_str = cleaned_response[start_idx:end_idx]
+                    
+                    try:
+                        extracted_facts = json.loads(json_str)
+                        
+                        # Only update if we got valid facts
+                        if isinstance(extracted_facts, dict) and extracted_facts:
+                            # Merge with existing facts (new facts override old ones)
+                            current_facts.update(extracted_facts)
+                            USER_FACTS[user_id] = current_facts
+                            
+                            print(f"[Memory] Extracted facts for user {user_id}: {extracted_facts}")
+                            
+                    except json.JSONDecodeError:
+                        # Fallback: try to extract basic name patterns manually
+                        extract_basic_facts_fallback(content, user_id, current_facts)
+                        
+        except Exception as e:
+            print(f"[Memory] Error in LLM fact extraction: {e}")
+            # Fallback to basic pattern matching
+            extract_basic_facts_fallback(content, user_id, current_facts)
+            
+    except Exception as e:
+        print(f"[Memory] Error in extract_and_store_user_facts: {e}")
+
+def extract_basic_facts_fallback(content, user_id, current_facts):
+    """Fallback method to extract basic facts using pattern matching."""
+    try:
+        import re
+        
+        # Basic name extraction patterns
+        name_patterns = [
+            r"my name is (\w+)",
+            r"i'm (\w+)",
+            r"call me (\w+)",
+            r"i am (\w+)",
+            r"name's (\w+)"
+        ]
+        
+        for pattern in name_patterns:
+            match = re.search(pattern, content)
+            if match:
+                name = match.group(1).strip()
+                if len(name) > 1 and name.isalpha():
+                    current_facts['name'] = name
+                    USER_FACTS[user_id] = current_facts
+                    print(f"[Memory] Extracted name (fallback) for user {user_id}: {name}")
+                    break
+                    
+    except Exception as e:
+        print(f"[Memory] Error in fallback fact extraction: {e}")
 
 @bot.event
 async def on_message(message):
@@ -655,11 +1017,78 @@ async def on_message(message):
     if message.author == bot.user:
         return
     
+    # Lockdown: Only respond in allowed channels
+    if message.guild and LOCKED_CHANNELS.get(message.guild.id):
+        if message.channel.id not in LOCKED_CHANNELS[message.guild.id]:
+            return
+
     # Update dashboard stats
     await update_message_stats(message)
-    
-    # Process commands
+
+    # Process commands (so commands still work)
     await bot.process_commands(message)
+
+    # Only respond to non-command messages (ignore bots and commands)
+    if message.content.startswith(bot.command_prefix):
+        return
+    if message.author.bot:
+        return    # Set persona mode for context
+    set_mode_for_context(message)
+    
+    # Track user interaction
+    INTERACTED_USERS.add(message.author.id)
+    
+    # Extract user facts and update memory
+    extract_and_store_user_facts(message)
+    
+    # Get context key for conversation history (per user per channel/DM)
+    if message.guild:
+        context_key = f"{message.author.id}_{message.guild.id}_{message.channel.id}"
+    else:
+        context_key = f"{message.author.id}_dm"
+    
+    # Add user message to conversation history
+    user_msg = {"role": "user", "content": message.content, "timestamp": datetime.now().isoformat()}
+    CONVO_HISTORY[context_key].append(user_msg)
+    
+    # Generate a response using your LLM/persona system
+    try:
+        # Show typing indicator to make Yumi appear more human
+        async with message.channel.typing():
+            # Add a small delay to make typing feel natural
+            await asyncio.sleep(random.uniform(0.5, 2.0))
+            
+            # Get user facts for this user
+            user_facts = USER_FACTS.get(str(message.author.id), {})
+            
+            # Get conversation history for context
+            convo_history = CONVO_HISTORY[context_key]
+            
+            # Generate response with memory and context
+            response = await yumi_sugoi_response(
+                message.content,
+                qa_pairs=qa_pairs,
+                user_facts=user_facts,
+                convo_history=convo_history
+)
+            
+            if response:
+                # Add assistant response to conversation history
+                assistant_msg = {"role": "assistant", "content": response, "timestamp": datetime.now().isoformat()}
+                CONVO_HISTORY[context_key].append(assistant_msg)
+                
+                # Add another small delay based on response length to simulate typing time
+                typing_delay = min(len(response) * 0.02, 3.0)  # Max 3 seconds
+                await asyncio.sleep(typing_delay)
+                await message.channel.send(response)
+                
+                # Save updated conversation history and user facts
+                save_convo_history(CONVO_HISTORY)
+                save_user_facts(USER_FACTS)
+                
+    except Exception as e:
+        print(f"[Yumi] Error generating response: {e}")
+        traceback.print_exc()
 
 @bot.event
 async def on_command_completion(ctx):
@@ -668,8 +1097,18 @@ async def on_command_completion(ctx):
 
 @bot.event
 async def on_ready():
+    """Bot startup event handler"""
     print(f'Logged in as {bot.user}')
     print("Yumi Sugoi modular bot is ready!")
+    
+    # Set bot instance for dashboard
+    set_bot_instance(bot)
+    
+    # Load dashboard stats  
+    load_dashboard_stats()  
+    bot.loop.create_task(update_server_stats())  # Start server stats tracking
+    bot.loop.create_task(cleanup_old_stats())  # Start stats cleanup
+    
     # Set initial status to current mode immediately
     persona_status = {
         'normal': "Your friendly, caring AI companion 🤗 | !yumi_help",
@@ -955,6 +1394,17 @@ def run():
         sys.exit(1)
     
     try:
+       ### # Start the web dashboard in a background thread
+       ### print("Starting web dashboard...")
+       ### start_dashboard_thread(PERSONA_MODES, CUSTOM_PERSONAS, get_level, get_xp)
+       ### print("Web dashboard started on http://localhost:5005")
+       ### 
+       ### # Add a small delay to allow dashboard to initialize
+       ### import time
+       ### time.sleep(2)
+        
+        # Start the Discord bot
+        print("Starting Discord bot...")
         bot.run(TOKEN)
     except Exception as e:
         print(f"Error running bot: {e}")
