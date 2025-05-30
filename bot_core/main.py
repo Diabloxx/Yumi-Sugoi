@@ -31,13 +31,76 @@ from .feedback import (
 )
 from .websearch import duckduckgo_search_and_summarize
 from .image_caption import caption_image
-from .web_dashboard import load_dashboard_stats as load_dashboard_stats_func, start_dashboard_thread, set_bot_instance
+# Dashboard imports removed - dashboard runs separately
 from .yumi_vision import download_image_bytes, query_ollama_with_image
+from .api_integration import initialize_api_integration
+from .status_publisher import initialize_status_publisher
 
 
 # --- Load initial state ---
 # Load conversation history
 CONVO_HISTORY = history.load_convo_history()
+
+# File path for server tracking
+SERVER_TRACKING_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'datasets', 'active_servers.json')
+
+def load_active_servers():
+    """Load active servers from JSON file"""
+    try:
+        if os.path.exists(SERVER_TRACKING_FILE):
+            with open(SERVER_TRACKING_FILE, 'r', encoding='utf-8') as f:
+                content = f.read().strip()
+                if not content:
+                    print("[Servers] Active servers file is empty, initializing with empty dict")
+                    return {}
+                return json.loads(content)
+    except (json.JSONDecodeError, UnicodeDecodeError) as e:
+        print(f"[Servers] Error reading active servers file: {e}. Reinitializing...")
+        # If the file is corrupted, create a new empty one
+        save_active_servers({})
+        return {}
+    except Exception as e:
+        print(f"[Servers] Unexpected error loading active servers: {e}")
+    return {}
+
+def save_active_servers(servers):
+    """Save active servers to JSON file"""
+    try:
+        # Ensure the directory exists
+        os.makedirs(os.path.dirname(SERVER_TRACKING_FILE), exist_ok=True)
+        with open(SERVER_TRACKING_FILE, 'w', encoding='utf-8') as f:
+            json.dump(servers, f, indent=2, ensure_ascii=False)
+    except Exception as e:
+        print(f"[Servers] Error saving active servers: {e}")
+
+# Update Active Servers
+
+def update_server_info(guild):
+    """Update server information"""
+    servers = load_active_servers()
+    
+    servers[str(guild.id)] = {
+        'id': str(guild.id),
+        'name': guild.name,
+        'member_count': guild.member_count,
+        'icon_url': str(guild.icon.url) if guild.icon else None,
+        'owner_id': str(guild.owner_id),
+        'joined_at': guild.me.joined_at.isoformat() if guild.me.joined_at else None,
+        'last_updated': datetime.utcnow().isoformat()
+    }
+    
+    save_active_servers(servers)
+    print(f"[Servers] Updated info for {guild.name} (ID: {guild.id})")
+
+# Remove server from tracking
+
+def remove_server(guild_id):
+    """Remove server from tracking"""
+    servers = load_active_servers()
+    if str(guild_id) in servers:
+        del servers[str(guild_id)]
+        save_active_servers(servers)
+        print(f"[Servers] Removed server ID: {guild_id}")
 
 # Load feedback data
 feedback_scores, user_feedback = feedback.load_feedback()
@@ -241,6 +304,7 @@ async def yumi_mode_slash(interaction: discord.Interaction, mode: str):
             'genalpha': "Gen Alpha mode: Slay, bestie! 💅 | !yumi_mode",
             'egirl': "E-girl mode: uwu cuteness overload! 🦋 | !yumi_mode"
         }
+        
         status = persona_status.get(mode, persona_status['normal'])
         activity = discord.Game(name=status)
         await bot.change_presence(status=discord.Status.online, activity=activity)
@@ -477,6 +541,7 @@ async def yumi_mode(ctx, mode: str):
             'genalpha': "Gen Alpha mode: Slay, bestie! 💅 | !yumi_mode",
             'egirl': "E-girl mode: uwu cuteness overload! 🦋 | !yumi_mode"
         }
+        
         status = persona_status.get(mode, persona_status['normal'])
         activity = discord.Game(name=status)
         await bot.change_presence(status=discord.Status.online, activity=activity)
@@ -1123,6 +1188,25 @@ async def on_message(message):
         traceback.print_exc()
 
 @bot.event
+async def on_guild_join(guild):
+    """Called when bot joins a new server"""
+    print(f"[Servers] Joined new server: {guild.name} (ID: {guild.id})")
+    update_server_info(guild)
+
+@bot.event
+async def on_guild_remove(guild):
+    """Called when bot leaves/is removed from a server"""
+    print(f"[Servers] Left server: {guild.name} (ID: {guild.id})")
+    remove_server(guild.id)
+
+@bot.event
+async def on_guild_update(before, after):
+    """Called when a guild is updated"""
+    if before.name != after.name or before.member_count != after.member_count:
+        print(f"[Servers] Server updated: {after.name} (ID: {after.id})")
+        update_server_info(after)
+
+@bot.event
 async def on_command_completion(ctx):
     """Command completion event handler"""
     update_command_stats(ctx)
@@ -1133,13 +1217,10 @@ async def on_ready():
     print(f'Logged in as {bot.user}')
     print("Yumi Sugoi modular bot is ready!")
     
-    # Set bot instance for dashboard
-    set_bot_instance(bot)
-    
-    # Load dashboard stats  
-    load_dashboard_stats()  
-    bot.loop.create_task(update_server_stats())  # Start server stats tracking
-    bot.loop.create_task(cleanup_old_stats())  # Start stats cleanup
+    # Update info for all current servers
+    for guild in bot.guilds:
+        update_server_info(guild)
+    print(f"[Servers] Loaded {len(bot.guilds)} servers")
     
     # Set initial status to current mode immediately
     persona_status = {
@@ -1166,14 +1247,25 @@ async def on_ready():
     mode = get_persona_mode() or 'normal'
     status = persona_status.get(mode, persona_status['normal'])
     activity = discord.Game(name=status)
+    
     try:
         await bot.change_presence(status=discord.Status.online, activity=activity)
     except Exception:
         pass
-    
-    # Initialize background tasks
+      # Initialize background tasks
     await setup_tasks()
     print("[Startup] Background tasks initialized")
+    
+    # Initialize API integration and status publisher for real-time stats
+    try:
+        initialize_api_integration(bot)
+        print("[Startup] API integration initialized")
+        
+        initialize_status_publisher(bot)
+        print("[Startup] Status publisher initialized with uptime tracking")
+    except Exception as e:
+        print(f"[Startup] Warning: Failed to initialize API components: {e}")
+    
     print(f"Yumi is online with mode: {mode} and status: {status}")
 
 def set_mode_for_context(message):
@@ -1234,18 +1326,31 @@ async def yumi_lockdown(ctx):
     """
     Restrict Yumi to only respond in this channel.
     """
-    channel = ctx.channel
-    guild = ctx.guild
-    LOCKED_CHANNELS[guild.id].add(channel.id)
-    save_lockdown_channels()
-    
     try:
-        # No need to modify channel permissions - Yumi will be locked to this channel through code logic
+        channel = ctx.channel
+        guild = ctx.guild
+        
+        # Validate guild exists
+        if not guild:
+            await ctx.send("❌ This command can only be used in a server!")
+            return
+            
+        # Validate bot permissions
+        if not guild.me.guild_permissions.read_messages:
+            await ctx.send("❌ I don't have permission to read messages in this server!")
+            return
+            
+        # Add channel to lockdown
+        LOCKED_CHANNELS[guild.id].add(channel.id)
+        save_lockdown_channels()
+        
         await ctx.send(f"🔒 Yumi is now locked to <#{channel.id}>. She will only reply in this channel until unlocked.\n"
                        f"Use `!yumi_unlock` in this channel to remove lockdown, or use `!yumi_lockdown` in another channel to move her.")
+        print(f"[Lockdown] Set lockdown for guild {guild.id} channel {channel.id}")
+        
     except Exception as e:
-        await ctx.send(f"⚠️ Lockdown failed: {e}")
-    print(f"[DEBUG] Lockdown set for guild {guild.id} channel {channel.id}")
+        print(f"[Error] Lockdown command failed: {e}")
+        await ctx.send(f"⚠️ Lockdown failed: {str(e)}")
 
 @bot.command()
 @commands.check_any(commands.has_permissions(administrator=True), admin_only())
@@ -1253,13 +1358,25 @@ async def yumi_unlock(ctx):
     """
     Remove lockdown, allow Yumi to respond in all channels again.
     """
-    channel = ctx.channel
-    guild = ctx.guild
-    
-    # No need to modify channel permissions since we no longer set them in lockdown
-    await ctx.send("🔓 Lockdown lifted! Yumi will now respond in all channels again.")
-    LOCKED_CHANNELS[guild.id].discard(channel.id)
-    save_lockdown_channels()
+    try:
+        channel = ctx.channel
+        guild = ctx.guild
+        
+        # Validate guild exists
+        if not guild:
+            await ctx.send("❌ This command can only be used in a server!")
+            return
+        
+        # Remove channel from lockdown
+        LOCKED_CHANNELS[guild.id].discard(channel.id)
+        save_lockdown_channels()
+        
+        await ctx.send("🔓 Lockdown lifted! Yumi will now respond in all channels again.")
+        print(f"[Lockdown] Removed lockdown for guild {guild.id} channel {channel.id}")
+        
+    except Exception as e:
+        print(f"[Error] Unlock command failed: {e}")
+        await ctx.send(f"⚠️ Unlock failed: {str(e)}")
 
 # --- PURGE COMMAND ---
 @bot.command()
@@ -1425,16 +1542,7 @@ def run():
         print("Make sure you have set the DISCORD_TOKEN environment variable.")
         sys.exit(1)
     
-    try:
-       ### # Start the web dashboard in a background thread
-       ### print("Starting web dashboard...")
-       ### start_dashboard_thread(PERSONA_MODES, CUSTOM_PERSONAS, get_level, get_xp)
-       ### print("Web dashboard started on http://localhost:5005")
-       ### 
-       ### # Add a small delay to allow dashboard to initialize
-       ### import time
-       ### time.sleep(2)
-        
+    try:     
         # Start the Discord bot
         print("Starting Discord bot...")
         bot.run(TOKEN)
