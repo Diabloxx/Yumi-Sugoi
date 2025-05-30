@@ -1,0 +1,139 @@
+# Docker Compose for CI/CD Testing Environment
+version: '3.8'
+
+services:
+  # API Service
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_ENV=testing
+      - DATABASE_URL=postgresql://testuser:testpass@postgres:5432/yumi_test
+      - REDIS_URL=redis://redis:6379/0
+      - JWT_SECRET_KEY=test_secret_key_for_ci
+      - API_RATE_LIMIT=1000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    volumes:
+      - ./api:/app
+      - test_logs:/app/logs
+
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15
+    environment:
+      - POSTGRES_USER=testuser
+      - POSTGRES_PASSWORD=testpass
+      - POSTGRES_DB=yumi_test
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U testuser -d yumi_test"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - postgres_test_data:/var/lib/postgresql/data
+      - ./api/migrations:/docker-entrypoint-initdb.d
+
+  # Redis Cache
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - redis_test_data:/data
+
+  # Test Runner
+  test-runner:
+    build:
+      context: ./api
+      dockerfile: Dockerfile.test
+    environment:
+      - DATABASE_URL=postgresql://testuser:testpass@postgres:5432/yumi_test
+      - REDIS_URL=redis://redis:6379/0
+      - FLASK_ENV=testing
+    depends_on:
+      api:
+        condition: service_healthy
+    volumes:
+      - ./api:/app
+      - test_results:/app/test-results
+    command: |
+      bash -c "
+        echo 'Waiting for services to be ready...'
+        sleep 10
+        echo 'Running comprehensive test suite...'
+        pytest -xvs --cov=. --cov-report=html --cov-report=xml --junitxml=test-results/junit.xml
+      "
+
+  # Load Testing with Locust
+  load-test:
+    build:
+      context: ./tests/load
+      dockerfile: Dockerfile
+    environment:
+      - TARGET_HOST=http://api:5000
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "8089:8089"
+    volumes:
+      - ./tests/load:/app
+      - load_test_results:/app/results
+    command: |
+      locust -f /app/locustfile.py --host http://api:5000 --web-host 0.0.0.0
+
+  # Security Scanner
+  security-scanner:
+    image: owasp/zap2docker-stable
+    depends_on:
+      api:
+        condition: service_healthy
+    volumes:
+      - ./security:/zap/wrk
+      - security_results:/zap/results
+    command: |
+      zap-full-scan.py -t http://api:5000 -J /zap/results/zap-report.json -r /zap/results/zap-report.html
+
+  # Documentation Generator
+  docs:
+    build:
+      context: ./docs
+      dockerfile: Dockerfile
+    volumes:
+      - ./docs:/docs
+      - ./api:/api
+      - docs_output:/docs/_build
+    command: |
+      bash -c "
+        cd /docs
+        sphinx-apidoc -o . /api
+        make html
+      "
+
+volumes:
+  postgres_test_data:
+  redis_test_data:
+  test_logs:
+  test_results:
+  load_test_results:
+  security_results:
+  docs_output:

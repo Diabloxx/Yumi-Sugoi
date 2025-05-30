@@ -6,8 +6,8 @@ from typing import Dict, List, Any, Deque
 
 CONVO_HISTORY_FILE = 'convo_history.json'
 # Store last 100 messages, but use a sliding window for context
-TOTAL_HISTORY_LENGTH = 500  # Total messages to store
-CONTEXT_WINDOW_SIZE = 200    # Messages to use for immediate context
+TOTAL_HISTORY_LENGTH = 9000000  # Total messages to store
+CONTEXT_WINDOW_SIZE = 9000000    # Messages to use for immediate context
 
 def clean_response(response: str) -> str:
     """Clean the response of any fabricated dialogue and format issues."""

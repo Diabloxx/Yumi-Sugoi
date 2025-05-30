@@ -1,0 +1,94 @@
+version: '3.8'
+
+services:
+  # Redis for caching and real-time communication
+  redis:
+    image: redis:7-alpine
+    container_name: yumi-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+  # PostgreSQL database (optional upgrade from SQLite)
+  postgres:
+    image: postgres:15-alpine
+    container_name: yumi-postgres
+    environment:
+      POSTGRES_DB: yumi_bot
+      POSTGRES_USER: yumi
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-yumi_secure_password}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U yumi -d yumi_bot"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+  # Yumi API Server
+  yumi-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: yumi-api
+    environment:
+      - FLASK_ENV=production
+      - DATABASE_URL=postgresql://yumi:${POSTGRES_PASSWORD:-yumi_secure_password}@postgres:5432/yumi_bot
+      - REDIS_URL=redis://redis:6379
+      - FLASK_SECRET_KEY=${FLASK_SECRET_KEY:-change-this-in-production}
+      - JWT_SECRET=${JWT_SECRET:-change-this-jwt-secret}
+      - API_KEY=${API_KEY:-change-this-api-key}
+      - DISCORD_BOT_TOKEN=${DISCORD_BOT_TOKEN}
+      - DISCORD_CLIENT_ID=${DISCORD_CLIENT_ID}
+      - DISCORD_CLIENT_SECRET=${DISCORD_CLIENT_SECRET}
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3000,https://yumi-dashboard.vercel.app}
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./logs:/app/logs
+      - ./data:/app/data
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/bot/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # Nginx reverse proxy (optional)
+  nginx:
+    image: nginx:alpine
+    container_name: yumi-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+      - ./ssl:/etc/nginx/ssl
+    depends_on:
+      - yumi-api
+    restart: unless-stopped
+
+volumes:
+  redis_data:
+  postgres_data:
+
+networks:
+  default:
+    name: yumi-network
