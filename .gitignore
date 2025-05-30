@@ -72,3 +72,7 @@ user_feedback.json
 advertise_on_twitter.py
 test_simple_tweet.py
 test_twitter_auth.py
+nginx.conf
+setup_redis.ps1
+cleanup_plan.md
+bot_core/web_dashboard_fixed.py
