@@ -64,14 +64,29 @@ Yumi Sugoi is a modern, feature-rich Discord AI chatbot powered by Ollama LLM an
    OLLAMA_MODEL=gemma3:4b
    OLLAMA_TEMPERATURE=0.7
    OLLAMA_NUM_PREDICT=256
+   API_SECRET_KEY=your_secret_key_here
    ```
 
-3. Run the bot:
+3. Initialize the database:
    ```powershell
+   python scripts/database_setup.py
+   ```
+
+4. Start the full system (API + Bot):
+   ```powershell
+   python start_yumi.py
+   ```
+   
+   Or run components separately:
+   ```powershell
+   # API server only
+   python run_api.py
+   
+   # Discord bot only  
    python run_bot.py
    ```
 
-4. Access dashboard: http://localhost:5000
+5. Access dashboard: http://localhost:5000
 
 ## Key Commands
 
@@ -91,14 +106,33 @@ Yumi Sugoi is a modern, feature-rich Discord AI chatbot powered by Ollama LLM an
 ## Project Structure
 ```
 Yumi-Sugoi/
-├── bot_core/           # Core bot functionality
+├── api/               # Flask API backend
+│   ├── app.py         # Main API application
+│   ├── app_fixed.py   # SQLite-based API (production)
+│   ├── routes_*.py    # API route modules
+│   ├── yumi_bot.db    # SQLite database
+│   └── ...
+├── bot_core/          # Core Discord bot functionality
 │   ├── main.py        # Main bot logic
 │   ├── llm.py         # Ollama LLM integration
 │   ├── persona.py     # Persona system
-│   ├── web_dashboard/ # Dashboard components
+│   ├── commands.py    # Bot commands
+│   ├── static/        # Web dashboard assets
+│   ├── templates/     # Dashboard templates
 │   └── ...
-├── datasets/          # Persistent data storage (user_facts.json, convo_history.json)
-└── ...
+├── datasets/          # Persistent data storage
+│   ├── user_facts.json    # User memory data
+│   ├── convo_history.json # Conversation history
+│   ├── custom_personas.json # Custom personas
+│   └── dashboard_data/    # Dashboard analytics
+├── tests/             # All test files
+├── scripts/           # Setup and utility scripts
+├── docs/              # Documentation
+├── docker/            # Docker configuration
+├── logs/              # Application logs
+├── start_yumi.py      # Unified startup script
+├── run_api.py         # API server launcher
+└── run_bot.py         # Bot launcher
 ```
 
 ## Memory & Context System (2025)
