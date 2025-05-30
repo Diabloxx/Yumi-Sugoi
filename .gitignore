@@ -1,3 +1,7 @@
+# Tests and Scripts (excluded from version control)
+tests/
+scripts/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -20,6 +24,33 @@ Thumbs.db
 *.sqlite3
 *.db
 *.log
+
+# Docker
+docker-compose.override.yml
+
+# Additional log files
+logs/
+api.log
+bot.log
+
+# Redis dumps
+dump.rdb
+
+# Temporary files
+*.tmp
+*.temp
+temp/
+tmp/
+
+# API Keys and Secrets
+secrets.json
+config.json
+api_keys.json
+
+# Coverage Reports
+htmlcov/
+.coverage
+.pytest_cache/
 
 # Datasets (keep only chatbot_dataset.json, user_names.json, yumi_modes.json, README.txt)
 datasets/*
