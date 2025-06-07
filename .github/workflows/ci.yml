@@ -9,15 +9,14 @@ on:
     # Run tests daily at 2 AM UTC
     - cron: '0 2 * * *'
 
-jobs:
-  lint:
+jobs:  lint:
     runs-on: ubuntu-latest
     
     steps:
     - uses: actions/checkout@v4
     
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.11'
     
@@ -46,14 +45,12 @@ jobs:
     
     steps:
     - uses: actions/checkout@v4
-    
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
+      - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
-    
-    - name: Cache pip dependencies
-      uses: actions/cache@v3
+      - name: Cache pip dependencies
+      uses: actions/cache@v4
       with:
         path: |
           ~/.cache/pip
@@ -96,7 +93,6 @@ jobs:
       if: matrix.os != 'windows-latest'
       run: |
         pytest tests/test_integration.py -v --tb=short
-
   security:
     runs-on: ubuntu-latest
     
@@ -104,7 +100,7 @@ jobs:
     - uses: actions/checkout@v4
     
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.11'
     
@@ -116,12 +112,11 @@ jobs:
     
     - name: Run safety check
       run: safety check
-    
-    - name: Run bandit security check
+      - name: Run bandit security check
       run: bandit -r bot_core/ api/ -f json -o bandit-report.json || true
     
     - name: Upload security report
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: security-report
         path: bandit-report.json
