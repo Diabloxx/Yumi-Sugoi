@@ -1,5 +1,11 @@
 # Yumi Sugoi Discord AI Chatbot
 
+[![CI](https://github.com/Diabloxx/Yumi-Sugoi/actions/workflows/ci.yml/badge.svg)](https://github.com/Diabloxx/Yumi-Sugoi/actions/workflows/ci.yml)
+[![Release](https://github.com/Diabloxx/Yumi-Sugoi/actions/workflows/release.yml/badge.svg)](https://github.com/Diabloxx/Yumi-Sugoi/actions/workflows/release.yml)
+[![PyPI version](https://badge.fury.io/py/yumi-sugoi.svg)](https://badge.fury.io/py/yumi-sugoi)
+[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 Yumi Sugoi is a modern, feature-rich Discord AI chatbot powered by Ollama LLM and equipped with multiple personas, self-learning capabilities, persistent memory, and a beautiful web dashboard. Perfect for communities seeking an engaging, customizable AI companion.
 
 ## Core Features
@@ -45,29 +51,99 @@ Yumi Sugoi is a modern, feature-rich Discord AI chatbot powered by Ollama LLM an
 - **Audit Logging:** Comprehensive activity tracking
 - **Admin Commands:** Powerful moderation and management tools
 
+## Installation & Quick Start
+
+### From PyPI (Recommended)
+```bash
+# Install the package
+pip install yumi-sugoi
+
+# Run the bot
+yumi-bot
+
+# Run the API dashboard (in another terminal)
+yumi-api
+```
+
+### From Source
+```bash
+# Clone the repository
+git clone https://github.com/Diabloxx/Yumi-Sugoi.git
+cd Yumi-Sugoi
+
+# Install in development mode
+pip install -e .
+
+# Run the bot
+yumi-bot
+
+# Run the API dashboard
+yumi-api
+```
+
 ## Requirements
-- Python 3.9+
+- Python 3.8+
 - Ollama (running locally or on network)
-- discord.py 2.x+
-- Additional dependencies in requirements.txt
+- Discord Bot Token (from Discord Developer Portal)
+- Redis (optional, for enhanced performance)
+## Configuration
+
+### Environment Variables
+Create a `.env` file in the project root:
+
+```ini
+# Discord Bot Configuration
+DISCORD_TOKEN=your_discord_token_here
+
+# Ollama LLM Configuration  
+OLLAMA_URL=http://localhost:11434/api/generate
+OLLAMA_MODEL=mistralrp
+OLLAMA_TEMPERATURE=0.7
+OLLAMA_NUM_PREDICT=256
+
+# API Configuration
+API_SECRET_KEY=your_secret_key_here
+FLASK_SECRET_KEY=your_flask_secret_key
+
+# Optional: Redis Configuration
+REDIS_URL=redis://localhost:6379
+
+# Optional: Database Configuration
+DATABASE_URL=sqlite:///./api/yumi_bot.db
+```
+
+### API Tokens
+Generate API tokens for dashboard access:
+```bash
+python generate_api_token.py
+```
 
 ## Quick Setup
-1. Install dependencies:
-   ```powershell
-   pip install -r requirements.txt
+
+1. **Install Ollama** and pull the model:
+   ```bash
+   ollama pull mistralrp
    ```
 
-2. Set up your .env file:
-   ```ini
-   DISCORD_TOKEN=your_discord_token_here
-   OLLAMA_URL=http://localhost:11434/api/generate
-   OLLAMA_MODEL=gemma3:4b
-   OLLAMA_TEMPERATURE=0.7
-   OLLAMA_NUM_PREDICT=256
-   API_SECRET_KEY=your_secret_key_here
+2. **Install Yumi Sugoi**:
+   ```bash
+   pip install yumi-sugoi
    ```
 
-3. Initialize the database:
+3. **Configure Environment**:
+   - Copy `.env.example` to `.env`
+   - Add your Discord bot token
+   - Configure Ollama URL if not running locally
+
+4. **Run the Bot**:
+   ```bash
+   yumi-bot
+   ```
+
+5. **Run the Dashboard** (optional):
+   ```bash
+   yumi-api
+   ```
    ```powershell
    python scripts/database_setup.py
    ```

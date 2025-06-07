@@ -1,6 +1,14 @@
-# Tests and Scripts (excluded from version control)
-tests/
+# Tests (selective inclusion - include package tests, exclude old tests)
+tests/test_*.py
+!tests/test_package.py
+!tests/conftest.py
+tests/comprehensive_*
+tests/integration_*
 scripts/
+
+# Core test files to include
+!tests/test_package.py
+!tests/conftest.py
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
