@@ -22,5 +22,19 @@ def get_version():
 
 def main():
     """Main entry point for the API server."""
-    from .app_unified import main as api_main
-    api_main()
+    import sys
+    import os
+    
+    # Add the project root to Python path
+    project_root = os.path.dirname(os.path.dirname(__file__))
+    if project_root not in sys.path:
+        sys.path.insert(0, project_root)
+    
+    # Import and run the unified app
+    from .app_unified import app
+    
+    print("Starting Yumi Sugoi API Server...")
+    print(f"Database: {app.config['DATABASE_PATH']}")
+    print(f"Available at: http://localhost:5000")
+    
+    app.run(host='0.0.0.0', port=5000, debug=True)

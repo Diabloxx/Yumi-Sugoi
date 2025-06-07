@@ -81,8 +81,8 @@ Repository = "https://github.com/yourusername/Yumi-Sugoi"
 Changelog = "https://github.com/yourusername/Yumi-Sugoi/blob/main/CHANGELOG.md"
 
 [project.scripts]
-yumi-bot = "bot_core.main:main"
-yumi-api = "api.app_unified:main"
+yumi-bot = "bot_core.main:run"
+yumi-api = "api:main"
 
 [tool.setuptools]
 include-package-data = true

@@ -25,5 +25,5 @@ def get_version():
 
 def main():
     """Main entry point for the bot."""
-    from .main import main as bot_main
-    bot_main()
+    from .main import run
+    run()
