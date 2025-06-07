@@ -14,9 +14,40 @@ _current_mode = "normal"
 def set_persona_mode(mode: str) -> bool:
     """Set the current persona mode."""
     global _current_mode
-    if mode.lower() in PERSONA_MODES:
-        _current_mode = mode.lower()
+    mode_lower = mode.lower()
+    
+    # Check if it's a built-in persona mode
+    if mode_lower in PERSONA_MODES:
+        _current_mode = mode_lower
         return True
+    
+    # Check if it's a custom persona
+    try:
+        from . import main
+        custom_personas = getattr(main, 'custom_personas', {})
+        if mode_lower in custom_personas:
+            _current_mode = mode_lower
+            return True
+    except Exception:
+        # Fallback: try importing from main module directly
+        try:
+            import os
+            import json
+            
+            # Get the custom personas file path
+            dataset_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'datasets')
+            custom_personas_file = os.path.join(dataset_dir, 'custom_personas.json')
+            
+            # Load custom personas
+            with open(custom_personas_file, 'r', encoding='utf-8') as f:
+                custom_personas = json.load(f)
+                
+            if mode_lower in custom_personas:
+                _current_mode = mode_lower
+                return True
+        except Exception:
+            pass
+    
     return False
 
 def get_persona_mode() -> str:
@@ -333,6 +364,37 @@ def get_persona_prompt() -> str:
             "Balance cuteness with authentic emotional and physical connection. Show real passion beneath the kawaii exterior~ "
             "Build bonds through sweet encouragement and genuine interest while maintaining that spicy e-girl energy!"
         )
+    
+    
+    # Check if it's a custom persona
+    try:
+        from . import main
+        custom_personas = getattr(main, 'custom_personas', {})
+        if mode in custom_personas:
+            custom_persona = custom_personas[mode]
+            # Use custom system prompt if available, otherwise use description
+            custom_prompt = custom_persona.get('system_prompt', custom_persona.get('description', ''))
+            if custom_prompt:
+                return base_prompt + custom_prompt
+    except Exception:
+        # Fallback: try loading from file directly
+        try:
+            import os
+            import json
+            
+            dataset_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'datasets')
+            custom_personas_file = os.path.join(dataset_dir, 'custom_personas.json')
+            
+            with open(custom_personas_file, 'r', encoding='utf-8') as f:
+                custom_personas = json.load(f)
+                
+            if mode in custom_personas:
+                custom_persona = custom_personas[mode]
+                custom_prompt = custom_persona.get('system_prompt', custom_persona.get('description', ''))
+                if custom_prompt:
+                    return base_prompt + custom_prompt
+        except Exception:
+            pass
     
     # Default to normal mode if somehow an invalid mode got through
     return base_prompt + (

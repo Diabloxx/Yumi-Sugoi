@@ -1,0 +1,51 @@
+# Include package metadata and documentation
+include README.md
+include CHANGELOG.md
+include LICENSE
+include TERMS.md
+include PRIVACY.md
+include requirements.txt
+include pyproject.toml
+
+# Include datasets and configuration files
+recursive-include datasets *.json *.txt
+recursive-include bot_core/templates *
+recursive-include bot_core/static *
+
+# Include API files
+recursive-include api *.sql *.json
+exclude api/yumi_bot.db
+exclude api/api_tokens.json
+
+# Include documentation
+recursive-include docs *
+
+# Include Docker files
+include docker/Dockerfile*
+include docker/docker-compose*.yml
+include docker/nginx.conf
+
+# Include scripts
+recursive-include scripts *.py *.ps1
+
+# Exclude development and testing files
+exclude test_*.py
+exclude *_test.py
+recursive-exclude tests *
+recursive-exclude logs *
+recursive-exclude __pycache__ *
+recursive-exclude .git *
+exclude .gitignore
+exclude .env*
+exclude *.log
+exclude admin-panel/node_modules/*
+exclude admin-panel/.next/*
+
+# Exclude sensitive data
+exclude datasets/user_*
+exclude datasets/warnings.json
+exclude datasets/lockdown_channels.json
+exclude api_tokens.json
+exclude convo_history.json
+exclude user_feedback.json
+exclude feedback_scores.json

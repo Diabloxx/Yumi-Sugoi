@@ -46,6 +46,23 @@ tmp/
 secrets.json
 config.json
 api_keys.json
+api_tokens.json
+api/api_tokens.json
+
+# User Data and Conversations
+convo_history.json
+user_feedback.json
+feedback_scores.json
+
+# Personal Data Files
+datasets/user_facts.json
+datasets/user_names.json
+datasets/user_xp.json
+datasets/warnings.json
+datasets/active_servers.json
+datasets/lockdown_channels.json
+datasets/posted_changelog.txt
+datasets/ollama_log.txt
 
 # Coverage Reports
 htmlcov/

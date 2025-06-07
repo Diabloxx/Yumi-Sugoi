@@ -1,0 +1,16 @@
+{
+  "example_token_hash": {
+    "name": "example_token",
+    "description": "Example API token for documentation",
+    "created_at": "2025-01-01T00:00:00.000000",
+    "expires_at": "2026-01-01T00:00:00.000000",
+    "permissions": [
+      "read",
+      "write",
+      "admin"
+    ],
+    "last_used": null,
+    "usage_count": 0,
+    "active": true
+  }
+}
