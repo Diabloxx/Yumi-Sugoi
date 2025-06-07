@@ -3,12 +3,12 @@ name: Build and Release
 on:
   push:
     tags:
-      - 'v*'
-  pull_request:
+      - 'v*'  pull_request:
     branches: [ main, develop ]
   workflow_dispatch:
 
-jobs:  test:
+jobs:
+  test:
     runs-on: ubuntu-latest
     strategy:
       matrix:
